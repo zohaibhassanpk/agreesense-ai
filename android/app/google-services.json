@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "980497778455",
+    "project_id": "agrisenseai-app",
+    "storage_bucket": "agrisenseai-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:980497778455:android:c2fb86d99463f480c45952",
+        "android_client_info": {
+          "package_name": "app.fyp.agrisenseaiapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "980497778455-vv5re2b4np1ut5r3thlnjmb0upd1ipkq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTEOPptZHpkJR_JjJzs-PX9UNJDO7yXeo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "980497778455-vv5re2b4np1ut5r3thlnjmb0upd1ipkq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
