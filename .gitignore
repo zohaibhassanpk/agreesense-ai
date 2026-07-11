@@ -1,0 +1,36 @@
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Flutter/Dart
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android
+android/.gradle/
+android/**/local.properties
+android/.idea/
+android/**/captures/
+android/**/GeneratedPluginRegistrant.java
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.flx
+ios/Flutter/App.framework
+ios/Flutter/engine/
+ios/Flutter/Flutter.podspec
+ios/Flutter/flutter_export_environment.sh
+
+# Misc
+*.log

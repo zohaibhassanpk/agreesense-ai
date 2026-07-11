@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter emulators *)",
+      "Bash(xcrun simctl *)",
+      "Bash(open -a Simulator)",
+      "Bash(flutter run *)",
+      "Bash(git -C /Users/mc/Downloads/agreesense-ai diff HEAD -- lib/features/home/data/models/home_dashboard_model.dart lib/features/home/domain/entities/home_dashboard.dart lib/features/home/domain/repositories/home_repository.dart lib/features/analytics/presentation/widgets/analytics_metric_chart_card.dart lib/features/analytics/presentation/widgets/analytics_screen_content.dart)",
+      "Bash(flutter devices *)",
+      "Bash(curl -s --max-time 20 'https://agrisenseai-app-default-rtdb.asia-southeast1.firebasedatabase.app/users/zohaibhassanpk2/farms/farm_01/fields/field_01/history.json?orderBy=%22timestamp%22&startAt=0&limitToFirst=1')",
+      "Bash(echo \"exit: $?\")",
+      "Bash(curl -s -m 15 'https://agrisenseai-app-default-rtdb.asia-southeast1.firebasedatabase.app/users/zohaibhassanpk2/farms/farm_01/fields/field_01/history.json?orderBy=%22timestamp%22&startAt=1783770000000&limitToFirst=1')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -m 15 'https://agrisenseai-app-default-rtdb.asia-southeast1.firebasedatabase.app/users/zohaibhassanpk2/farms/farm_01/fields/field_01/history.json?orderBy=%22timestamp%22&startAt=1783770000000&limitToFirst=1')",
+      "Bash(curl -s --max-time 15 'https://agrisenseai-app-default-rtdb.asia-southeast1.firebasedatabase.app/users/zohaibhassanpk2/farms/farm_01/fields/field_01/history.json?orderBy=%22timestamp%22&startAt=0&limitToFirst=1')",
+      "Bash(curl -s --max-time 15 'https://agrisenseai-app-default-rtdb.asia-southeast1.firebasedatabase.app/users/zohaibhassanpk2/farms/farm_01/fields/field_01/current.json')",
+      "Bash(python3 -)",
+      "Bash(adb devices *)",
+      "Bash(git checkout *)",
+      "Bash(echo \"exit code: $?\")",
+      "Bash(echo \"format exit: $?\")"
+    ]
+  }
+}
