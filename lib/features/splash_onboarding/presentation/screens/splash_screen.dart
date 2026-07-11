@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../app/injection_container.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/extensions/responsive_extension.dart';
+import '../../../../core/providers/auth_session_provider.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../core/services/local_storage/local_storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/system_utils.dart';
@@ -20,10 +26,16 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController;
+  late final AuthSessionProvider _authSessionProvider;
+  late final LocalStorageService _localStorageService;
+  Timer? _navigationTimer;
+  VoidCallback? _authListener;
 
   @override
   void initState() {
     super.initState();
+    _authSessionProvider = context.read<AuthSessionProvider>();
+    _localStorageService = di<LocalStorageService>();
     SystemUtils.enableFullScreen();
     SystemUtils.setCustomSystemUI(
       statusBarIconBrightness: Brightness.light,
@@ -36,20 +48,52 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
 
-    // Navigate to onboarding screen after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        context.go(RouteNames.onboarding);
-      }
-    });
+    _navigationTimer = Timer(
+      const Duration(seconds: 3),
+      _handleSplashComplete,
+    );
   }
 
   @override
   void dispose() {
+    _navigationTimer?.cancel();
+    if (_authListener != null) {
+      _authSessionProvider.removeListener(_authListener!);
+    }
     _pulseController.dispose();
     SystemUtils.disableFullScreen();
     SystemUtils.setDefaultSystemUI();
     super.dispose();
+  }
+
+  Future<void> _handleSplashComplete() async {
+    if (!mounted) return;
+
+    if (!_authSessionProvider.isReady) {
+      _authListener = () {
+        if (!_authSessionProvider.isReady || !mounted) return;
+        _authSessionProvider.removeListener(_authListener!);
+        _authListener = null;
+        _navigateFromSplash();
+      };
+      _authSessionProvider.addListener(_authListener!);
+      return;
+    }
+
+    await _navigateFromSplash();
+  }
+
+  Future<void> _navigateFromSplash() async {
+    final String targetRoute;
+    if (_authSessionProvider.isAuthenticated) {
+      targetRoute = RouteNames.navbar;
+    } else {
+      final completed = await _localStorageService.getOnboardingCompleted();
+      targetRoute = completed ? RouteNames.auth : RouteNames.onboarding;
+    }
+
+    if (!mounted) return;
+    context.go(targetRoute);
   }
 
   Animation<double> _dotAnimation(double start) {

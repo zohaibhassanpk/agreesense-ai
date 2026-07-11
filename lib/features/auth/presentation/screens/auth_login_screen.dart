@@ -102,7 +102,7 @@ class _AuthLoginScreenContentState extends State<_AuthLoginScreenContent> {
                               : () async {
                                   final success =
                                       await provider.signInWithGoogle();
-                                  if (!mounted) return;
+                                    if (!context.mounted) return;
 
                                   if (success) {
                                     context.go(RouteNames.navbar);

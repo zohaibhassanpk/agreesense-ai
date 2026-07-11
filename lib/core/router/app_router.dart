@@ -25,10 +25,13 @@ class AppRouter {
       if (!_authSessionProvider.isReady) return null;
 
       final location = state.matchedLocation;
+      if (location == RouteNames.splash) {
+        return null;
+      }
       final isAuthenticated = _authSessionProvider.isAuthenticated;
-        final isAuthFlow = location == RouteNames.auth;
+      final isAuthFlow = location == RouteNames.auth;
       final isPublic =
-          location == RouteNames.splash || location == RouteNames.onboarding;
+          location == RouteNames.onboarding;
 
       if (!isAuthenticated && !(isAuthFlow || isPublic)) {
         return RouteNames.auth;

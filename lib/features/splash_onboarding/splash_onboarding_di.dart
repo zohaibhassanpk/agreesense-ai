@@ -19,7 +19,10 @@ class SplashOnboardingDI {
 
     // Providers
     di.registerFactory<OnboardingProvider>(
-      () => OnboardingProvider(repository: di()),
+      () => OnboardingProvider(
+        repository: di(),
+        localStorageService: di(),
+      ),
     );
   }
 }

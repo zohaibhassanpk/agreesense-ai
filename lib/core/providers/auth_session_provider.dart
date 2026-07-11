@@ -9,7 +9,7 @@ class AuthSessionProvider extends ChangeNotifier {
   AuthSessionProvider({required FirebaseAuthService authService})
       : _authService = authService {
     _user = _authService.currentUser;
-    _isReady = true;
+    _isReady = _user != null;
     _subscription = _authService.authStateChanges().listen(_handleAuthChange);
   }
 
@@ -25,7 +25,9 @@ class AuthSessionProvider extends ChangeNotifier {
 
   void _handleAuthChange(AppUser? user) {
     _user = user;
-    _isReady = true;
+    if (!_isReady) {
+      _isReady = true;
+    }
     notifyListeners();
   }
 

@@ -101,7 +101,7 @@ class _ProfileAvatar extends StatelessWidget {
                 width: size,
                 height: size,
                 fit: BoxFit.cover,
-                errorWidget: (context, _, __) => Center(
+                errorWidget: (context, url, error) => Center(
                   child: SvgPicture.asset(
                     AppAssets.profile,
                     width: (AppSpacing.x2l + AppSpacing.md).w,

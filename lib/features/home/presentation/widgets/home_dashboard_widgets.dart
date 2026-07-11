@@ -224,17 +224,21 @@ class HomeActionButton extends StatelessWidget {
     required this.label,
     required this.icon,
     this.onPressed,
+    this.isActive = false,
   });
 
   final String label;
   final String icon;
   final VoidCallback? onPressed;
+  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
+    final Color foregroundColor =
+        isActive ? AppColors.primary : AppColors.darkGreen;
     final TextStyle labelStyle =
         (context.textTheme.titleMedium ?? AppTextStyles.titleMedium).copyWith(
-          color: AppColors.darkGreen,
+          color: foregroundColor,
           fontWeight: FontWeight.w500,
           letterSpacing: 0,
         );
@@ -243,9 +247,12 @@ class HomeActionButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor: AppColors.surface,
+          backgroundColor:
+              isActive ? AppColors.primaryTint20 : AppColors.surface,
           padding: EdgeInsets.symmetric(vertical: AppSpacing.md.h),
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(
+            color: isActive ? AppColors.primary : AppColors.border,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppBorderRadius.s16.r),
           ),
@@ -257,8 +264,8 @@ class HomeActionButton extends StatelessWidget {
               icon,
               width: AppSpacing.x2l.w,
               height: AppSpacing.x2l.w,
-              colorFilter: const ColorFilter.mode(
-                AppColors.darkGreen,
+              colorFilter: ColorFilter.mode(
+                foregroundColor,
                 BlendMode.srcIn,
               ),
             ),
@@ -273,6 +280,169 @@ class HomeActionButton extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class HomeWaterLogsSheet extends StatelessWidget {
+  const HomeWaterLogsSheet({super.key});
+
+  static Future<void> show({required BuildContext context}) {
+    return CustomBottomSheet.show<void>(
+      context: context,
+      child: const HomeWaterLogsSheet(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final TextStyle titleStyle =
+        context.textTheme.titleMedium ?? AppTextStyles.titleMedium;
+    final TextStyle subtitleStyle =
+        (context.textTheme.bodySmall ?? AppTextStyles.bodySmall).copyWith(
+          color: AppColors.textTertiary,
+        );
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.x2l.w,
+        AppSpacing.lg.h,
+        AppSpacing.x2l.w,
+        AppSpacing.x2l.h,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Water Logs', style: titleStyle),
+          SizedBox(height: (AppSpacing.sm / 2).h),
+          Text('Last 7 days', style: subtitleStyle),
+          SizedBox(height: AppSpacing.lg.h),
+          _WaterLogTile(
+            title: 'Morning drip cycle',
+            subtitle: 'Today • 07:30 AM',
+            amount: '18 L',
+            status: 'Completed',
+            statusColor: AppColors.primary,
+          ),
+          _WaterLogTile(
+            title: 'Auto irrigation',
+            subtitle: 'Yesterday • 06:50 AM',
+            amount: '22 L',
+            status: 'Completed',
+            statusColor: AppColors.primary,
+          ),
+          _WaterLogTile(
+            title: 'Field recharge',
+            subtitle: 'May 9 • 05:15 PM',
+            amount: '12 L',
+            status: 'Completed',
+            statusColor: AppColors.primary,
+          ),
+          _WaterLogTile(
+            title: 'Manual test run',
+            subtitle: 'May 8 • 03:40 PM',
+            amount: '5 L',
+            status: 'Paused',
+            statusColor: AppColors.accentYellow,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WaterLogTile extends StatelessWidget {
+  const _WaterLogTile({
+    required this.title,
+    required this.subtitle,
+    required this.amount,
+    required this.status,
+    required this.statusColor,
+  });
+
+  final String title;
+  final String subtitle;
+  final String amount;
+  final String status;
+  final Color statusColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextStyle titleStyle =
+        context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium;
+    final TextStyle subtitleStyle =
+        (context.textTheme.bodySmall ?? AppTextStyles.bodySmall).copyWith(
+          color: AppColors.textTertiary,
+        );
+    final TextStyle amountStyle =
+        (context.textTheme.titleMedium ?? AppTextStyles.titleMedium).copyWith(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600,
+        );
+    final TextStyle statusStyle =
+        (context.textTheme.labelMedium ?? AppTextStyles.labelMedium).copyWith(
+          color: statusColor,
+          fontWeight: FontWeight.w600,
+        );
+
+    return Container(
+      margin: EdgeInsets.only(bottom: AppSpacing.md.h),
+      padding: EdgeInsets.all(AppSpacing.md.r),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppBorderRadius.card,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: (AppSpacing.x2l + AppSpacing.sm).w,
+            height: (AppSpacing.x2l + AppSpacing.sm).w,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceMuted,
+              borderRadius: BorderRadius.circular(AppBorderRadius.s12.r),
+            ),
+            child: Center(
+              child: SvgPicture.asset(
+                AppAssets.timeRefresh,
+                width: AppSpacing.xl.w,
+                height: AppSpacing.xl.w,
+                colorFilter: ColorFilter.mode(statusColor, BlendMode.srcIn),
+              ),
+            ),
+          ),
+          SizedBox(width: AppSpacing.md.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: titleStyle),
+                SizedBox(height: (AppSpacing.sm / 2).h),
+                Text(subtitle, style: subtitleStyle),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(amount, style: amountStyle),
+              SizedBox(height: (AppSpacing.sm / 2).h),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm.w,
+                  vertical: (AppSpacing.sm / 2).h,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppBorderRadius.s12.r),
+                ),
+                child: Text(status, style: statusStyle),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -7,6 +7,7 @@ class LocalStorageService {
 
   // Storage keys
   static const String _authStateKey = 'auth_state';
+  static const String _onboardingCompletedKey = 'onboarding_completed';
   static const String _expiryTimeKey = 'auth_expiry_time';
   static const String _accessTokenKey = 'auth_access_token';
   static const String _refreshTokenKey = 'auth_refresh_token';
@@ -87,6 +88,23 @@ class LocalStorageService {
     await clearTokens();
     await clearFcmToken();
     await _secureStorage.delete(key: _authStateKey);
+  }
+
+  // ============ ONBOARDING METHODS ============
+
+  /// Returns whether the user has completed onboarding.
+  Future<bool> getOnboardingCompleted() async {
+    final stored = await _secureStorage.read(key: _onboardingCompletedKey);
+    if (stored == null) return false;
+    return stored == 'true';
+  }
+
+  /// Persist onboarding completion state.
+  Future<void> saveOnboardingCompleted(bool completed) async {
+    await _secureStorage.write(
+      key: _onboardingCompletedKey,
+      value: completed.toString(),
+    );
   }
 
   // ============ FCM TOKEN METHODS ============

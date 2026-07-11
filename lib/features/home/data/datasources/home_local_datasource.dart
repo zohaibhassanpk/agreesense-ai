@@ -48,12 +48,12 @@ class HomeLocalDataSourceImpl implements HomeLocalDataSource {
           statusColorKey: 'primary',
         ),
         SensorReadingModel(
-          label: 'Soil pH',
-          value: '6.5',
-          unit: 'pH',
-          icon: AppAssets.jar,
-          iconColorKey: 'brown',
-          statusColorKey: 'primary',
+          label: 'Light Intensity',
+          value: '760',
+          unit: 'lx',
+          icon: AppAssets.sun,
+          iconColorKey: 'yellow',
+          statusColorKey: 'yellow',
         ),
       ],
     );

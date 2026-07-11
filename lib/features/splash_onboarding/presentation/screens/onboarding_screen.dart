@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../app/injection_container.dart';
 import '../../../../core/extensions/responsive_extension.dart';
+import '../../../../core/providers/auth_session_provider.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -74,11 +75,18 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     provider.goToPage(index);
   }
 
-  void _handleSkip() {
-    context.go(RouteNames.auth);
+  Future<void> _handleSkip() async {
+    final authSession = context.read<AuthSessionProvider>();
+    final provider = context.read<OnboardingProvider>();
+    await provider.markOnboardingCompleted();
+    if (!context.mounted) return;
+    final targetRoute = authSession.isAuthenticated
+        ? RouteNames.navbar
+        : RouteNames.auth;
+    context.go(targetRoute);
   }
 
-  void _handleCta() {
+  Future<void> _handleCta() async {
     final provider =
         Provider.of<OnboardingProvider>(context, listen: false);
     if (provider.hasNextPage) {
@@ -87,7 +95,14 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
         curve: Curves.easeOut,
       );
     } else {
-      context.go(RouteNames.auth);
+      final authSession = context.read<AuthSessionProvider>();
+      final provider = context.read<OnboardingProvider>();
+      await provider.markOnboardingCompleted();
+      if (!context.mounted) return;
+      final targetRoute = authSession.isAuthenticated
+          ? RouteNames.navbar
+          : RouteNames.auth;
+      context.go(targetRoute);
     }
   }
 

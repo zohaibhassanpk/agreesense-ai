@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
+import '../../../../core/services/local_storage/local_storage_service.dart';
+import '../../../../core/services/logger/logger_service.dart';
 import '../../domain/entities/onboarding_page_entity.dart';
 import '../../domain/repositories/onboarding_repository.dart';
 
 /// State notifier for managing onboarding flow.
 class OnboardingProvider extends ChangeNotifier {
-  OnboardingProvider({required this.repository});
+  OnboardingProvider({
+    required this.repository,
+    required this.localStorageService,
+  });
 
   final OnboardingRepository repository;
+  final LocalStorageService localStorageService;
+  final LoggerService _logger = LoggerService(
+    className: 'OnboardingProvider',
+  );
 
   List<OnboardingPageEntity> _pages = [];
   int _currentPageIndex = 0;
@@ -79,5 +88,18 @@ class OnboardingProvider extends ChangeNotifier {
   void reset() {
     _currentPageIndex = 0;
     notifyListeners();
+  }
+
+  /// Marks onboarding as completed for future app launches.
+  Future<void> markOnboardingCompleted() async {
+    try {
+      await localStorageService.saveOnboardingCompleted(true);
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to persist onboarding completion.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 }
