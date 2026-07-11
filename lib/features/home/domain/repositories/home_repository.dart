@@ -2,4 +2,6 @@ import '../entities/home_dashboard.dart';
 
 abstract class HomeRepository {
   Future<HomeDashboard> getDashboard();
+  Stream<HomeDashboard> watchDashboard();
+  Future<void> setPumpStatus(bool isOn);
 }

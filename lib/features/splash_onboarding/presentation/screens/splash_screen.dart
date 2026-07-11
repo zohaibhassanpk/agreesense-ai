@@ -48,10 +48,7 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
 
-    _navigationTimer = Timer(
-      const Duration(seconds: 3),
-      _handleSplashComplete,
-    );
+    _navigationTimer = Timer(const Duration(seconds: 3), _handleSplashComplete);
   }
 
   @override
@@ -135,9 +132,7 @@ class _SplashScreenState extends State<SplashScreen>
             ),
             Positioned.fill(
               child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: contentPadding.w,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: contentPadding.w),
                 child: Column(
                   children: [
                     const Spacer(),

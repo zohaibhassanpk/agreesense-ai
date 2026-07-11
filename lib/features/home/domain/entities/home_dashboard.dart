@@ -9,6 +9,9 @@ class HomeDashboard {
     required this.smartAction,
     required this.updatedLabel,
     required this.sensors,
+    this.deviceOnline = true,
+    this.updatedAt,
+    this.pumpOn = false,
   });
 
   final String greeting;
@@ -17,4 +20,7 @@ class HomeDashboard {
   final SmartAction smartAction;
   final String updatedLabel;
   final List<SensorReading> sensors;
+  final bool deviceOnline;
+  final DateTime? updatedAt;
+  final bool pumpOn;
 }

@@ -1,0 +1,36 @@
+{
+  "sensor": {
+    "controls": {
+      "pump_status": false
+    }
+  },
+  "users": {
+    "zohaibhassanpk2": {
+      "farms": {
+        "farm_01": {
+          "fields": {
+            "field_01": {
+              "current": {
+                "deviceOnline": true,
+                "humidityPercent": 65.8,
+                "lightLux": 91.67,
+                "soilMoisturePercent": 0,
+                "temperatureC": 34,
+                "updatedAt": 1783771022000
+              },
+              "history": {
+                "1783770391000": {
+                  "humidityPercent": 65.6,
+                  "lightLux": 93.33,
+                  "soilMoisturePercent": 0,
+                  "temperatureC": 33.9,
+                  "timestamp": 1783770391000
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

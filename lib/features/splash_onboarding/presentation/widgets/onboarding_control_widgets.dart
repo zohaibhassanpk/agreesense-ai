@@ -21,8 +21,9 @@ class OnboardingSkipButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextStyle textStyle =
-        (context.textTheme.labelLarge ?? AppTextStyles.labelLarge)
-            .copyWith(color: AppColors.textTertiary);
+        (context.textTheme.labelLarge ?? AppTextStyles.labelLarge).copyWith(
+          color: AppColors.textTertiary,
+        );
 
     return Visibility(
       visible: isVisible,
@@ -58,8 +59,7 @@ class OnboardingPagerIndicator extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(total, (index) {
         final bool isActive = index == currentIndex;
-        final double width =
-            isActive ? AppSpacing.x2l.w : AppSpacing.sm.w;
+        final double width = isActive ? AppSpacing.x2l.w : AppSpacing.sm.w;
 
         return AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -93,9 +93,9 @@ class OnboardingPrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle textStyle =
         (context.textTheme.bodyLarge ?? AppTextStyles.bodyLarge).copyWith(
-      color: AppColors.white,
-      fontWeight: FontWeight.w500,
-    );
+          color: AppColors.white,
+          fontWeight: FontWeight.w500,
+        );
     final double height = (AppSpacing.x2l * 2) + (AppSpacing.sm / 2);
     final double iconSize = AppSpacing.lg + (AppSpacing.sm / 4);
 

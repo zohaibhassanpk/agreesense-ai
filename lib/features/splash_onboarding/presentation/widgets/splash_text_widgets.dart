@@ -12,8 +12,9 @@ class SplashTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextStyle baseStyle =
-        (context.textTheme.displayLarge ?? AppTextStyles.displayLarge)
-            .copyWith(color: AppColors.white);
+        (context.textTheme.displayLarge ?? AppTextStyles.displayLarge).copyWith(
+          color: AppColors.white,
+        );
 
     return Text.rich(
       TextSpan(
@@ -38,11 +39,10 @@ class SplashTagline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextStyle baseStyle =
-        (context.textTheme.labelLarge ?? AppTextStyles.labelLarge)
-            .copyWith(
-      color: AppColors.white.withValues(alpha: 0.8),
-      letterSpacing: _letterSpacing,
-    );
+        (context.textTheme.labelLarge ?? AppTextStyles.labelLarge).copyWith(
+          color: AppColors.white.withValues(alpha: 0.8),
+          letterSpacing: _letterSpacing,
+        );
 
     return Text(
       'SMART FARMING WITH AI',
@@ -94,10 +94,7 @@ class _PulseDot extends StatelessWidget {
 
         return Opacity(
           opacity: opacity,
-          child: Transform.scale(
-            scale: scale,
-            child: child,
-          ),
+          child: Transform.scale(scale: scale, child: child),
         );
       },
       child: Container(

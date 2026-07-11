@@ -8,6 +8,7 @@ import '../core/services/auth/google_sign_in_service.dart';
 import '../core/services/image_picker/image_picker_service.dart';
 import '../core/services/local_storage/local_storage_service.dart';
 import '../core/services/network/network_service.dart';
+import '../core/services/realtime_db/sensor_database_service.dart';
 import '../core/providers/auth_session_provider.dart';
 import '../features/alerts/alert_di.dart';
 import '../features/analytics/analytics_di.dart';
@@ -50,28 +51,33 @@ Future<void> initializeDependencies() async {
   // Network service
   di.registerLazySingleton<NetworkService>(() => NetworkService(di()));
 
+  // Sensor realtime database service
+  di.registerLazySingleton<SensorDatabaseService>(
+    () => SensorDatabaseService(),
+  );
+
   // -- FEATURES --
-  // Onboarding 
+  // Onboarding
   SplashOnboardingDI().init(di);
 
-  // Auth 
+  // Auth
   AuthDI().init(di);
 
-  // Home 
+  // Home
   HomeDI().init(di);
 
-  // Alerts 
+  // Alerts
   AlertsDI().init(di);
 
   // Analytics
   AnalyticsDI().init(di);
 
-  // Devices 
+  // Devices
   DevicesDI().init(di);
 
-  // Profile 
+  // Profile
   ProfileDI().init(di);
 
-  // Settings 
+  // Settings
   SettingsDI().init(di);
 }

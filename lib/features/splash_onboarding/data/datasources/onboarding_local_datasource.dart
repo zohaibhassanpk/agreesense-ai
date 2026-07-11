@@ -14,8 +14,7 @@ abstract class OnboardingLocalDataSource {
 }
 
 /// Concrete implementation of [OnboardingLocalDataSource].
-class OnboardingLocalDataSourceImpl
-    implements OnboardingLocalDataSource {
+class OnboardingLocalDataSourceImpl implements OnboardingLocalDataSource {
   /// Hardcoded onboarding pages data.
   static final List<OnboardingPageModel> _pages = [
     OnboardingPageModel(
@@ -64,9 +63,7 @@ class OnboardingLocalDataSourceImpl
   @override
   Future<OnboardingPageModel?> getPageById(String pageId) async {
     try {
-      return Future.value(
-        _pages.firstWhere((page) => page.id == pageId),
-      );
+      return Future.value(_pages.firstWhere((page) => page.id == pageId));
     } catch (_) {
       return Future.value(null);
     }

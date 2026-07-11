@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/enums/app_enums.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
+import '../../../../core/widgets/snackbars/custom_snackbars.dart';
 import '../../domain/entities/analytics_dashboard.dart';
 import '../../domain/entities/analytics_period_data.dart';
 import '../../domain/entities/analytics_time_range.dart';
+import '../providers/analytics_provider.dart';
 import 'analytics_header.dart';
 import 'analytics_metric_average_card.dart';
 import 'analytics_metric_chart_card.dart';
@@ -54,49 +58,66 @@ class AnalyticsScreenContent extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 24.h),
-              children: [
-                AnalyticsMetricChartCard(
-                  chartTitle: dashboard.chartTitle,
-                  period: period,
-                ),
-                SizedBox(height: 24.h),
-                Text(period.averagesTitle, style: averagesTitleStyle),
-                SizedBox(height: 12.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AnalyticsMetricAverageCard(
-                        metric: period.averages[0],
-                        isWide: false,
-                        showIcon: true,
-                        centerContent: false,
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () => _refresh(context),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 24.h),
+                children: [
+                  AnalyticsMetricChartCard(
+                    chartTitle: dashboard.chartTitle,
+                    period: period,
+                  ),
+                  SizedBox(height: 24.h),
+                  Text(period.averagesTitle, style: averagesTitleStyle),
+                  SizedBox(height: 12.h),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AnalyticsMetricAverageCard(
+                          metric: period.averages[0],
+                          isWide: false,
+                          showIcon: true,
+                          centerContent: false,
+                        ),
                       ),
-                    ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: AnalyticsMetricAverageCard(
-                        metric: period.averages[1],
-                        isWide: false,
-                        showIcon: true,
-                        centerContent: false,
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: AnalyticsMetricAverageCard(
+                          metric: period.averages[1],
+                          isWide: false,
+                          showIcon: true,
+                          centerContent: false,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12.h),
-                AnalyticsMetricAverageCard(
-                  metric: period.averages[2],
-                  isWide: true,
-                  showIcon: true,
-                  centerContent: false,
-                ),
-              ],
+                    ],
+                  ),
+                  SizedBox(height: 12.h),
+                  AnalyticsMetricAverageCard(
+                    metric: period.averages[2],
+                    isWide: true,
+                    showIcon: true,
+                    centerContent: false,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _refresh(BuildContext context) async {
+    final AnalyticsProvider provider = context.read<AnalyticsProvider>();
+    await provider.loadDashboard();
+    if (provider.errorMessage != null && context.mounted) {
+      CustomSnackbar.show(
+        context: context,
+        message: "Couldn't refresh analytics data.",
+        type: SnackbarType.error,
+      );
+    }
   }
 }

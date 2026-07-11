@@ -70,7 +70,10 @@ class HomeHeader extends StatelessWidget {
             ],
           ),
           SizedBox(height: AppSpacing.xl.h),
-          HomeConnectionPill(label: dashboard.connectionStatus),
+          HomeConnectionPill(
+            label: dashboard.connectionStatus,
+            isOnline: dashboard.deviceOnline,
+          ),
         ],
       ),
     );
@@ -95,9 +98,7 @@ class HomeProfileButton extends StatelessWidget {
           color: AppColors.surfaceMuted,
           shape: BoxShape.circle,
         ),
-        child: Center(
-          child: _ProfileAvatar(photoUrl: photoUrl),
-        ),
+        child: Center(child: _ProfileAvatar(photoUrl: photoUrl)),
       ),
     );
   }
@@ -148,15 +149,23 @@ class _ProfileAvatar extends StatelessWidget {
 }
 
 class HomeConnectionPill extends StatelessWidget {
-  const HomeConnectionPill({super.key, required this.label});
+  const HomeConnectionPill({
+    super.key,
+    required this.label,
+    this.isOnline = true,
+  });
 
   final String label;
+  final bool isOnline;
 
   @override
   Widget build(BuildContext context) {
+    final Color statusColor = isOnline
+        ? AppColors.primary
+        : AppColors.accentBrown;
     final TextStyle labelStyle =
         (context.textTheme.labelLarge ?? AppTextStyles.labelLarge).copyWith(
-          color: AppColors.primary,
+          color: statusColor,
           fontWeight: FontWeight.w500,
           letterSpacing: 0,
         );
@@ -180,8 +189,8 @@ class HomeConnectionPill extends StatelessWidget {
               Container(
                 width: AppSpacing.sm.w,
                 height: AppSpacing.sm.w,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
+                decoration: BoxDecoration(
+                  color: statusColor,
                   shape: BoxShape.circle,
                 ),
               ),

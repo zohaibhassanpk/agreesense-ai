@@ -13,9 +13,7 @@ class OnboardingProvider extends ChangeNotifier {
 
   final OnboardingRepository repository;
   final LocalStorageService localStorageService;
-  final LoggerService _logger = LoggerService(
-    className: 'OnboardingProvider',
-  );
+  final LoggerService _logger = LoggerService(className: 'OnboardingProvider');
 
   List<OnboardingPageEntity> _pages = [];
   int _currentPageIndex = 0;

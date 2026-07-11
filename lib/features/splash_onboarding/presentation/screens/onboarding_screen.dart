@@ -56,8 +56,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   }
 
   Future<void> _initializeOnboarding() async {
-    final provider =
-        Provider.of<OnboardingProvider>(context, listen: false);
+    final provider = Provider.of<OnboardingProvider>(context, listen: false);
     await provider.initialize();
   }
 
@@ -70,8 +69,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
   }
 
   void _handlePageChanged(int index) {
-    final provider =
-        Provider.of<OnboardingProvider>(context, listen: false);
+    final provider = Provider.of<OnboardingProvider>(context, listen: false);
     provider.goToPage(index);
   }
 
@@ -83,12 +81,12 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
     final targetRoute = authSession.isAuthenticated
         ? RouteNames.navbar
         : RouteNames.auth;
+    if (!mounted) return;
     context.go(targetRoute);
   }
 
   Future<void> _handleCta() async {
-    final provider =
-        Provider.of<OnboardingProvider>(context, listen: false);
+    final provider = Provider.of<OnboardingProvider>(context, listen: false);
     if (provider.hasNextPage) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -102,6 +100,7 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
       final targetRoute = authSession.isAuthenticated
           ? RouteNames.navbar
           : RouteNames.auth;
+      if (!mounted) return;
       context.go(targetRoute);
     }
   }
@@ -126,7 +125,10 @@ class _OnboardingScreenContentState extends State<_OnboardingScreenContent> {
 
           if (provider.pages.isEmpty) {
             return Center(
-              child: Text('No onboarding pages available', style: context.textTheme.bodyMedium),
+              child: Text(
+                'No onboarding pages available',
+                style: context.textTheme.bodyMedium,
+              ),
             );
           }
 

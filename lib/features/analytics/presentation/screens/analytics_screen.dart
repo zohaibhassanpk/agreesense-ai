@@ -7,6 +7,7 @@ import '../../../../core/extensions/responsive_extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
+import '../../../../core/widgets/animated/primary_button.dart';
 import '../../domain/entities/analytics_dashboard.dart';
 import '../../domain/entities/analytics_period_data.dart';
 import '../../domain/entities/analytics_time_range.dart';
@@ -42,7 +43,11 @@ class _AnalyticsView extends StatelessWidget {
         }
 
         if (provider.errorMessage != null && dashboard == null) {
-          return _AnalyticsErrorState(message: provider.errorMessage!);
+          return _AnalyticsErrorState(
+            message: provider.errorMessage!,
+            isRetrying: provider.isLoading,
+            onRetry: provider.loadDashboard,
+          );
         }
 
         if (dashboard == null || period == null) {
@@ -75,9 +80,15 @@ class _AnalyticsView extends StatelessWidget {
 }
 
 class _AnalyticsErrorState extends StatelessWidget {
-  const _AnalyticsErrorState({required this.message});
+  const _AnalyticsErrorState({
+    required this.message,
+    required this.isRetrying,
+    required this.onRetry,
+  });
 
   final String message;
+  final bool isRetrying;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +100,20 @@ class _AnalyticsErrorState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: EdgeInsets.all(AppSpacing.x2l.r),
-        child: Text(message, style: style, textAlign: TextAlign.center),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message, style: style, textAlign: TextAlign.center),
+            SizedBox(height: AppSpacing.lg.h),
+            PrimaryButton(
+              text: 'Retry',
+              fitToContent: true,
+              borderRadius: 12,
+              isLoading: isRetrying,
+              onPressed: onRetry,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -11,6 +11,13 @@ class _FailingHomeRepository implements HomeRepository {
   Future<HomeDashboard> getDashboard() async {
     throw Exception('home fail');
   }
+
+  @override
+  Stream<HomeDashboard> watchDashboard() =>
+      Stream<HomeDashboard>.error(Exception('home fail'));
+
+  @override
+  Future<void> setPumpStatus(bool isOn) async {}
 }
 
 void main() {

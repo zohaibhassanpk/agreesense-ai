@@ -194,6 +194,9 @@ class _AnalyticsChartPainter extends CustomPainter {
     );
 
     for (final AnalyticsMetricSeries item in series) {
+      if (item.points.isEmpty) {
+        continue;
+      }
       final Color color = _colorFromKey(item.colorKey);
       final Paint linePaint = Paint()
         ..color = color

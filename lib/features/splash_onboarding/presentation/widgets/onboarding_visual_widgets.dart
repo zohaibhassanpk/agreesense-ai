@@ -28,11 +28,13 @@ class OnboardingPageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextStyle titleStyle =
-        (context.textTheme.displaySmall ?? AppTextStyles.displaySmall)
-            .copyWith(color: AppColors.darkGreen);
+        (context.textTheme.displaySmall ?? AppTextStyles.displaySmall).copyWith(
+          color: AppColors.darkGreen,
+        );
     final TextStyle bodyStyle =
-        (context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium)
-            .copyWith(color: AppColors.textSecondary);
+        (context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium).copyWith(
+          color: AppColors.textSecondary,
+        );
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
@@ -40,17 +42,9 @@ class OnboardingPageContent extends StatelessWidget {
       children: [
         OnboardingIllustration(variant: illustration),
         SizedBox(height: (AppSpacing.x2l + AppSpacing.lg).h),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: titleStyle,
-        ),
+        Text(title, textAlign: TextAlign.center, style: titleStyle),
         AppSpacing.md.ht,
-        Text(
-          description,
-          textAlign: TextAlign.center,
-          style: bodyStyle,
-        ),
+        Text(description, textAlign: TextAlign.center, style: bodyStyle),
       ],
     );
   }
@@ -203,10 +197,7 @@ class _InsightsIllustration extends StatelessWidget {
 }
 
 class _IllustrationShell extends StatelessWidget {
-  const _IllustrationShell({
-    required this.accentColor,
-    required this.child,
-  });
+  const _IllustrationShell({required this.accentColor, required this.child});
 
   final Color accentColor;
   final Widget child;
@@ -258,8 +249,9 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextStyle labelStyle =
-        (context.textTheme.labelMedium ?? AppTextStyles.labelMedium)
-            .copyWith(color: color);
+        (context.textTheme.labelMedium ?? AppTextStyles.labelMedium).copyWith(
+          color: color,
+        );
     final double resolvedIconSize = iconSize ?? AppSpacing.x2l;
 
     return Container(
@@ -327,7 +319,8 @@ class _IconCard extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: borderRadius ?? AppBorderRadius.card,
         border: Border.all(color: borderColor ?? AppColors.borderLight),
-        boxShadow: boxShadow ??
+        boxShadow:
+            boxShadow ??
             [
               BoxShadow(
                 color: AppColors.black.withValues(alpha: 0.08),
@@ -386,10 +379,7 @@ class _BadgeCircle extends StatelessWidget {
           iconAsset,
           width: resolvedIconSize.w,
           height: resolvedIconSize.w,
-          colorFilter: const ColorFilter.mode(
-            AppColors.white,
-            BlendMode.srcIn,
-          ),
+          colorFilter: const ColorFilter.mode(AppColors.white, BlendMode.srcIn),
         ),
       ),
     );
@@ -402,8 +392,9 @@ class _InsightPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextStyle labelStyle =
-        (context.textTheme.labelMedium ?? AppTextStyles.labelMedium)
-            .copyWith(color: AppColors.textSecondary);
+        (context.textTheme.labelMedium ?? AppTextStyles.labelMedium).copyWith(
+          color: AppColors.textSecondary,
+        );
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -441,4 +432,3 @@ class _InsightPill extends StatelessWidget {
     );
   }
 }
-

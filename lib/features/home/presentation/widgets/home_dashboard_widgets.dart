@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_assets.dart';
+import '../../../../core/enums/app_enums.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
 import '../../../../core/theme/app_border_radius.dart';
@@ -9,8 +11,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
 import '../../../../core/widgets/bottom sheets/custom_bottom_sheets.dart';
+import '../../../../core/widgets/snackbars/custom_snackbars.dart';
 import '../../domain/entities/sensor_reading.dart';
 import '../../domain/entities/smart_action.dart';
+import '../providers/home_provider.dart';
 import 'home_color_resolver.dart';
 
 class HomeSmartActionCard extends StatelessWidget {
@@ -234,8 +238,9 @@ class HomeActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color foregroundColor =
-        isActive ? AppColors.primary : AppColors.darkGreen;
+    final Color foregroundColor = isActive
+        ? AppColors.primary
+        : AppColors.darkGreen;
     final TextStyle labelStyle =
         (context.textTheme.titleMedium ?? AppTextStyles.titleMedium).copyWith(
           color: foregroundColor,
@@ -247,8 +252,9 @@ class HomeActionButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor:
-              isActive ? AppColors.primaryTint20 : AppColors.surface,
+          backgroundColor: isActive
+              ? AppColors.primaryTint20
+              : AppColors.surface,
           padding: EdgeInsets.symmetric(vertical: AppSpacing.md.h),
           side: BorderSide(
             color: isActive ? AppColors.primary : AppColors.border,
@@ -264,10 +270,7 @@ class HomeActionButton extends StatelessWidget {
               icon,
               width: AppSpacing.x2l.w,
               height: AppSpacing.x2l.w,
-              colorFilter: ColorFilter.mode(
-                foregroundColor,
-                BlendMode.srcIn,
-              ),
+              colorFilter: ColorFilter.mode(foregroundColor, BlendMode.srcIn),
             ),
             SizedBox(width: AppSpacing.md.w),
             Flexible(
@@ -449,37 +452,45 @@ class _WaterLogTile extends StatelessWidget {
 }
 
 class HomePumpControlSheet extends StatelessWidget {
-  const HomePumpControlSheet({
-    super.key,
-    required this.isPumpOn,
-    required this.onTurnOn,
-    required this.onTurnOff,
-  });
+  const HomePumpControlSheet({super.key, required this.fallbackPumpOn});
 
-  final bool isPumpOn;
-  final VoidCallback onTurnOn;
-  final VoidCallback onTurnOff;
+  /// Value to show until the provider (watched live below) has one of its
+  /// own; keeps the initial paint in sync with the button behind the sheet.
+  final bool fallbackPumpOn;
 
   static Future<void> show({
     required BuildContext context,
-    required bool isPumpOn,
-    required VoidCallback onTurnOn,
-    required VoidCallback onTurnOff,
+    required HomeProvider provider,
   }) {
     return CustomBottomSheet.show<void>(
       context: context,
-      child: HomePumpControlSheet(
-        isPumpOn: isPumpOn,
-        onTurnOn: onTurnOn,
-        onTurnOff: onTurnOff,
+      child: ChangeNotifierProvider<HomeProvider>.value(
+        value: provider,
+        child: HomePumpControlSheet(
+          fallbackPumpOn: provider.dashboard?.pumpOn ?? false,
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final HomeProvider provider = context.watch<HomeProvider>();
+    final bool isPumpOn = provider.dashboard?.pumpOn ?? fallbackPumpOn;
     final TextStyle titleStyle =
         context.textTheme.titleMedium ?? AppTextStyles.titleMedium;
+
+    Future<void> handleTap(bool turnOn) async {
+      Navigator.of(context).pop();
+      final bool success = await provider.setPumpStatus(turnOn);
+      if (!success && context.mounted) {
+        CustomSnackbar.show(
+          context: context,
+          message: 'Could not update pump. Check your connection.',
+          type: SnackbarType.error,
+        );
+      }
+    }
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -499,14 +510,14 @@ class HomePumpControlSheet extends StatelessWidget {
             icon: AppAssets.pump,
             color: AppColors.darkGreen,
             isSelected: isPumpOn,
-            onTap: onTurnOn,
+            onTap: () => handleTap(true),
           ),
           _PumpActionTile(
             label: 'Turn Off',
             icon: AppAssets.pump,
             color: AppColors.error,
             isSelected: !isPumpOn,
-            onTap: onTurnOff,
+            onTap: () => handleTap(false),
           ),
         ],
       ),
@@ -533,10 +544,10 @@ class _PumpActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle labelStyle =
         (context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium).copyWith(
-      color: color,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    );
+          color: color,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0,
+        );
     final Color highlightColor = color.withValues(alpha: 0.12);
 
     return InkWell(

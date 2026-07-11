@@ -25,15 +25,8 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _HomeView extends StatefulWidget {
+class _HomeView extends StatelessWidget {
   const _HomeView();
-
-  @override
-  State<_HomeView> createState() => _HomeViewState();
-}
-
-class _HomeViewState extends State<_HomeView> {
-  bool _isPumpOn = false;
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +52,7 @@ class _HomeViewState extends State<_HomeView> {
             Expanded(
               child: _HomeDashboardBody(
                 dashboard: dashboard,
-                isPumpOn: _isPumpOn,
-                onPumpStateChanged: (value) {
-                  setState(() {
-                    _isPumpOn = value;
-                  });
-                },
+                provider: provider,
               ),
             ),
           ],
@@ -75,15 +63,10 @@ class _HomeViewState extends State<_HomeView> {
 }
 
 class _HomeDashboardBody extends StatelessWidget {
-  const _HomeDashboardBody({
-    required this.dashboard,
-    required this.isPumpOn,
-    required this.onPumpStateChanged,
-  });
+  const _HomeDashboardBody({required this.dashboard, required this.provider});
 
   final HomeDashboard dashboard;
-  final bool isPumpOn;
-  final ValueChanged<bool> onPumpStateChanged;
+  final HomeProvider provider;
 
   @override
   Widget build(BuildContext context) {
@@ -130,19 +113,11 @@ class _HomeDashboardBody extends StatelessWidget {
               HomeActionButton(
                 label: 'Pump Control',
                 icon: AppAssets.pump,
-                isActive: isPumpOn,
+                isActive: dashboard.pumpOn,
                 onPressed: () {
                   HomePumpControlSheet.show(
                     context: context,
-                    isPumpOn: isPumpOn,
-                    onTurnOn: () {
-                      onPumpStateChanged(true);
-                      Navigator.of(context).pop();
-                    },
-                    onTurnOff: () {
-                      onPumpStateChanged(false);
-                      Navigator.of(context).pop();
-                    },
+                    provider: provider,
                   );
                 },
               ),
