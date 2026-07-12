@@ -8,6 +8,8 @@ import '../core/services/auth/google_sign_in_service.dart';
 import '../core/services/image_picker/image_picker_service.dart';
 import '../core/services/local_storage/local_storage_service.dart';
 import '../core/services/network/network_service.dart';
+import '../core/services/notifications/notification_local_handler.dart';
+import '../core/services/notifications/sensor_alert_monitor.dart';
 import '../core/services/realtime_db/sensor_database_service.dart';
 import '../core/providers/auth_session_provider.dart';
 import '../features/alerts/alert_di.dart';
@@ -26,10 +28,10 @@ Future<void> initializeDependencies() async {
   // Local storage service
   di.registerLazySingleton<LocalStorageService>(() => LocalStorageService());
 
-  // Notifications service
-  // di.registerLazySingleton<NotificationsService>(
-  //   () => NotificationsService(),
-  // );
+  // Local notifications
+  di.registerLazySingleton<NotificationLocalHandler>(
+    () => NotificationLocalHandler(),
+  );
 
   // Image picker service
   di.registerLazySingleton<ImagePickerService>(
@@ -54,6 +56,14 @@ Future<void> initializeDependencies() async {
   // Sensor realtime database service
   di.registerLazySingleton<SensorDatabaseService>(
     () => SensorDatabaseService(),
+  );
+
+  // Threshold-crossing local notifications
+  di.registerLazySingleton<SensorAlertMonitor>(
+    () => SensorAlertMonitor(
+      sensorDatabase: di<SensorDatabaseService>(),
+      notificationHandler: di<NotificationLocalHandler>(),
+    ),
   );
 
   // -- FEATURES --

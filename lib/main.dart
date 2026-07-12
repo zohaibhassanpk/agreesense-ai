@@ -5,7 +5,10 @@ import 'core/utils/system_utils.dart';
 import 'package:flutter/material.dart';
 import 'core/config/responsive_config.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'core/services/logger/logger_service.dart';
+import 'core/services/notifications/notification_local_handler.dart';
+import 'core/services/notifications/sensor_alert_monitor.dart';
 
 void main() async {
   // Ensure flutter bindings are initialized.
@@ -19,6 +22,11 @@ void main() async {
 
   // Initialize dependencies
   await initializeDependencies();
+
+  // Local threshold-crossing notifications
+  await di<NotificationLocalHandler>().initialize();
+  await Permission.notification.request();
+  di<SensorAlertMonitor>().start();
 
   // Set system styles
   SystemUtils.setDefaultSystemUI();
