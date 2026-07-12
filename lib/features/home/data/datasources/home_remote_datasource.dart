@@ -76,16 +76,18 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
 
   HomeDashboardModel _mapDashboard(FieldCurrentReading? reading, bool pumpOn) {
     final DateTime? updatedAt = reading?.updatedAt;
-    final bool isFresh =
+
+    // Simple online check: compare updatedAt straight against now. Under
+    // one minute old -> Online, otherwise -> Offline.
+    final bool isOnline =
         updatedAt != null &&
         DateTime.now().difference(updatedAt) <
             SensorDbConstants.onlineStaleness;
-    final bool isOnline = (reading?.deviceOnline ?? false) && isFresh;
 
     return HomeDashboardModel(
       greeting: 'Welcome back',
       fieldName: _fieldDisplayName(SensorDbConstants.defaultFieldKey),
-      connectionStatus: isOnline ? 'Device Connected (Live)' : 'Device Offline',
+      connectionStatus: isOnline ? 'Device Online' : 'Device Offline',
       smartAction: _buildSmartAction(reading),
       updatedLabel: updatedAt == null
           ? 'No data yet'

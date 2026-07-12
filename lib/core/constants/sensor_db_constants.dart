@@ -26,9 +26,9 @@ class SensorDbConstants {
   static const String pumpStatusPath = 'sensor/controls/pump_status';
 
   /// A reading older than this counts as stale, so the device is shown as
-  /// offline even when the hardware never flipped `deviceOnline` off
-  /// (e.g. it lost power). The sensor cadence is 10-15 minutes.
-  static const Duration onlineStaleness = Duration(minutes: 30);
+  /// offline. Compared directly against `current.updatedAt` on every screen
+  /// refresh, independent of the `deviceOnline` flag the hardware writes.
+  static const Duration onlineStaleness = Duration(minutes: 1);
 }
 
 /// Default crop-condition thresholds used for status indicators and
