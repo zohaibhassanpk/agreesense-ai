@@ -1,4 +1,5 @@
 import 'package:agrisenseaiapp/features/settings/presentation/widgets/settings_section_label.dart';
+import 'package:agrisenseaiapp/features/settings/presentation/widgets/settings_threshold_card.dart';
 import 'package:agrisenseaiapp/features/settings/presentation/widgets/settings_toggle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,5 +25,29 @@ void main() {
 
     await tester.tap(find.byType(InkWell));
     expect(value, isTrue);
+  });
+
+  testWidgets('SettingsThresholdCard renders all canonical overrides', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      buildResponsiveTestApp(
+        SettingsThresholdCard(
+          minMoisture: 60,
+          maxTemperature: 30,
+          maxHumidity: 75,
+          onMinMoistureChanged: (_) {},
+          onMinMoistureChangeEnd: (_) {},
+          onMaxTemperatureChanged: (_) {},
+          onMaxTemperatureChangeEnd: (_) {},
+          onMaxHumidityChanged: (_) {},
+          onMaxHumidityChangeEnd: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text('Min. Moisture Level'), findsOneWidget);
+    expect(find.text('Max. Temperature'), findsOneWidget);
+    expect(find.text('Max. Humidity'), findsOneWidget);
   });
 }

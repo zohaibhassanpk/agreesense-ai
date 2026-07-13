@@ -101,6 +101,8 @@ Color _colorFromKey(String colorKey) {
       return AppColors.error;
     case 'green':
       return AppColors.primary;
+    case 'yellow':
+      return AppColors.accentYellow;
     default:
       return AppColors.textPrimary;
   }

@@ -9,5 +9,6 @@ void main() {
     );
     final dash = await repo.getDashboard();
     expect(dash.selectedCrop, isNotEmpty);
+    expect(dash.maxHumidity, 75);
   });
 }

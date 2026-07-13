@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
+import '../core/services/alerts/alerts_store.dart';
 import '../core/services/auth/firebase_auth_service.dart';
 import '../core/services/auth/google_sign_in_service.dart';
 import '../core/services/image_picker/image_picker_service.dart';
@@ -11,6 +12,7 @@ import '../core/services/network/network_service.dart';
 import '../core/services/notifications/notification_local_handler.dart';
 import '../core/services/notifications/sensor_alert_monitor.dart';
 import '../core/services/realtime_db/sensor_database_service.dart';
+import '../core/services/settings/threshold_settings_service.dart';
 import '../core/providers/auth_session_provider.dart';
 import '../features/alerts/alert_di.dart';
 import '../features/analytics/analytics_di.dart';
@@ -27,6 +29,11 @@ Future<void> initializeDependencies() async {
   // -- CORE --
   // Local storage service
   di.registerLazySingleton<LocalStorageService>(() => LocalStorageService());
+
+  // Canonical, persisted sensor threshold settings
+  di.registerLazySingleton<ThresholdSettingsService>(
+    () => ThresholdSettingsService(storage: di<LocalStorageService>()),
+  );
 
   // Local notifications
   di.registerLazySingleton<NotificationLocalHandler>(
@@ -63,6 +70,9 @@ Future<void> initializeDependencies() async {
     () => SensorAlertMonitor(
       sensorDatabase: di<SensorDatabaseService>(),
       notificationHandler: di<NotificationLocalHandler>(),
+      authSessionProvider: di<AuthSessionProvider>(),
+      thresholdSettings: di<ThresholdSettingsService>(),
+      alertsStore: di<AlertsStore>(),
     ),
   );
 

@@ -1,37 +1,40 @@
-# Local Threshold Notifications
+# Local Threshold Notifications & In-App Alerts
 
 Status: **implemented.**
 
-Local (on-device) notifications now fire when temperature, humidity, soil moisture, or light intensity move out of their normal range, using the exact zone table below.
+The app evaluates live field readings against one canonical threshold profile. A qualifying zone transition creates both an operating-system notification and a matching item in the Alerts tab.
 
-## How it works
+## Canonical threshold profile
 
-- A new service, `SensorAlertMonitor` (`lib/core/services/notifications/sensor_alert_monitor.dart`), listens to the same live Firebase stream Home already uses (`SensorDatabaseService.watchCurrent()`).
-- On every new reading, it checks each of the 4 metrics against its Normal / Warning / Critical zone.
-- It only shows a notification when a metric's zone **changes** to something other than Normal — e.g. Normal → Warning, or Warning → Critical. If a value stays in Warning for the next 5 readings in a row, you get **one** notification, not five. Returning to Normal doesn't notify (silently resets, so a future re-crossing notifies again).
-- Notifications are shown with `flutter_local_notifications` (via the existing `NotificationLocalHandler`, which was already written but unused before this).
-- Started in `lib/main.dart` right after app startup: requests the Android 13+ notification permission, then starts the monitor. It's registered in dependency injection like every other core service (`lib/app/injection_container.dart`).
+| Metric | Normal | Warning | Critical | User setting |
+|---|---|---|---|---|
+| Temperature | 20°C through configured maximum | 10–<20°C or above the configured maximum through 36°C | Below 10°C or above 36°C | Maximum, default 30°C; clamped to 20–36°C |
+| Humidity | 60% through configured maximum | 40–<60% or above the configured maximum through 85% | Below 40% or above 85% | Maximum, default 75%; clamped to 60–85% |
+| Soil Moisture | Configured minimum through 85% | 50% through below the configured minimum, or above 85% through 90% | Below 50% or above 90% | Minimum, default 60%; clamped to 50–85% |
+| Light Intensity | 45,000–70,000 lux | 20,000–<45,000 lux or above 70,000 lux, except for the high-light/heat case | Below 20,000 lux, or above 90,000 lux when temperature is also above 35°C | Fixed; no Settings slider |
 
-## Zone table used
+The Settings sliders update the shared threshold service immediately while dragging and persist to secure local storage when released. Saved values are loaded before the sensor monitor starts, so the first reading uses the user's configuration. The old, incompatible Home-only threshold table has been removed.
 
-| Metric | Normal | Warning | Critical |
-|---|---|---|---|
-| Temperature | 20–30°C | 15–19°C or 31–35°C | <10°C or >36°C |
-| Humidity | 60–75% | 45–59% or 76–85% | <40% or >85% |
-| Soil Moisture | 60–85% | 50–59% or 86–90% | <50% or >90% |
-| Light Intensity | 45,000–70,000 lux | 25,000–44,000 lux | <20,000 lux, or >90,000 lux **only if** temperature is also >35°C |
+## Notification flow
 
-A couple of small gaps in the original table (e.g. nothing labeled between Warning and Critical at 35–36°C) default to **Warning** — better to alert a bit early than miss a real crossing.
+- `SensorAlertMonitor` resolves the signed-in user's RTDB field key, with the shared demo key as the safety fallback.
+- It listens to the field's live `current` reading and classifies temperature, humidity, soil moisture, and light intensity.
+- It notifies only when a metric changes into Warning or Critical. Repeated readings in the same zone do not create duplicate alerts; returning to Normal resets the transition state.
+- Every message includes the sensor name, measured value, and the exact fixed or configured threshold that was crossed.
+- The same event is sent to `flutter_local_notifications` and added to the in-app `AlertsStore` with severity and timestamp.
 
-## Example notifications
+## Alerts tab
 
-- Soil moisture drops to 45%: **"Critical: Low Soil Moisture — Soil moisture is 45% — critical low. Irrigate immediately."**
-- Temperature climbs to 32°C: **"Warning: High Temperature — Temperature is 32°C — above the optimal 20–30°C range."**
+- Live alerts are merged with the existing seeded/demo history and sorted newest first.
+- Items are grouped into Today and Earlier sections from their timestamps.
+- All shows every item; Critical and Warnings reuse the existing severity filters.
+- The Critical chip count updates from the merged live data.
+- The live in-app store is capped at 50 items to bound memory growth.
 
-## Important — check this on your hardware
+Live alerts are session-scoped and are not persisted across a full app restart. Persisted alert history or cross-device synchronization would require a database-backed alerts repository.
 
-Your live sensor data currently reports light intensity around **90–95 lux** (e.g. `lightLux: 91.67` in your export). The table's "normal" range is 45,000–70,000 lux, which is real outdoor daylight-scale. At the current reading, light intensity will show as **Critical: Low Light Intensity on every single reading**, because 91 lux is nowhere close to 20,000. That's not a bug in this code — it's applying your table exactly as given. Worth confirming with whoever owns the ESP32 firmware whether the light sensor is reporting raw/uncalibrated values, a different unit, or genuinely needs recalibrating, before this ships — otherwise light intensity will alert constantly.
+## Runtime limitation
 
-## Known limitation (by design, per your request)
+This remains an on-device monitor. It works while the app process is alive, but it cannot guarantee notifications after the app has been fully terminated. Reliable closed-app delivery requires a server-side trigger and Firebase Cloud Messaging; that larger design remains in `NOTIFICATIONS_FEATURE_PLAN.md`.
 
-This only works while the app process is alive (open, or briefly backgrounded) — it will **not** notify if the app has been fully closed/swiped away. Reliable "notify me even when the app is closed" requires a server-side trigger (Cloud Function) pushing through Firebase Cloud Messaging instead of a local, on-device check. That fuller approach is written up in `NOTIFICATIONS_FEATURE_PLAN.md` if you want it later — this implementation is the simpler, local-only version you asked for.
+Light readings in the provided sample data are around 90–95 lux, far below the 20,000 lux critical boundary. Confirm the hardware unit/calibration before release to avoid legitimate-but-unhelpful low-light alerts.

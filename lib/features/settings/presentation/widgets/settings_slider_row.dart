@@ -15,6 +15,7 @@ class SettingsSliderRow extends StatelessWidget {
     required this.min,
     required this.max,
     required this.onChanged,
+    required this.onChangeEnd,
     this.activeColor = AppColors.primary,
   });
 
@@ -24,22 +25,23 @@ class SettingsSliderRow extends StatelessWidget {
   final double min;
   final double max;
   final ValueChanged<double> onChanged;
+  final ValueChanged<double> onChangeEnd;
   final Color activeColor;
 
   @override
   Widget build(BuildContext context) {
     final TextStyle titleStyle =
         (context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium).copyWith(
-      color: AppColors.textPrimary,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    );
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0,
+        );
     final TextStyle valueStyle =
         (context.textTheme.labelSmall ?? AppTextStyles.labelSmall).copyWith(
-      color: activeColor,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0,
-    );
+          color: activeColor,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0,
+        );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,6 +68,7 @@ class SettingsSliderRow extends StatelessWidget {
             min: min,
             max: max,
             onChanged: onChanged,
+            onChangeEnd: onChangeEnd,
           ),
         ),
       ],

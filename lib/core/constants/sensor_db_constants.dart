@@ -15,6 +15,15 @@ class SensorDbConstants {
   static const String defaultFarmKey = 'farm_01';
   static const String defaultFieldKey = 'field_01';
 
+  /// Converts an identity value into a Firebase Realtime Database-safe key.
+  ///
+  /// RTDB keys cannot contain `.`, `#`, `$`, `/`, `[` or `]`. Replacing each
+  /// illegal character keeps email and phone-derived device paths stable and
+  /// deterministic.
+  static String sanitizeRtdbKey(String raw) {
+    return raw.replaceAll(RegExp(r'[.#$/\[\]]'), '_');
+  }
+
   /// Path to the field node that holds the `current` and `history` children.
   static String fieldPath({
     String userKey = defaultUserKey,
@@ -28,18 +37,13 @@ class SensorDbConstants {
   /// A reading older than this counts as stale, so the device is shown as
   /// offline. Compared directly against `current.updatedAt` on every screen
   /// refresh, independent of the `deviceOnline` flag the hardware writes.
-  static const Duration onlineStaleness = Duration(minutes: 1);
-}
+  static const Duration onlineStaleness = Duration(seconds: 30);
 
-/// Default crop-condition thresholds used for status indicators and
-/// rule-based advice. The SRS leaves exact tobacco ranges TBD (TBD-2), so
-/// these follow the values shown in the app design (min moisture 30%,
-/// max temperature 35°C) until they become editable in Settings.
-class SensorThresholds {
-  SensorThresholds._();
-
-  static const double minSoilMoisturePercent = 30;
-  static const double maxTemperatureC = 35;
-  static const double minHumidityPercent = 30;
-  static const double maxHumidityPercent = 85;
+  /// Whether [updatedAt] is still within the inclusive online heartbeat.
+  static bool isReadingFresh(DateTime updatedAt, {DateTime? now}) {
+    return (now ?? DateTime.now())
+            .difference(updatedAt)
+            .compareTo(onlineStaleness) <=
+        0;
+  }
 }

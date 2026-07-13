@@ -23,17 +23,16 @@ void main() {
   });
 
   testWidgets('AlertCard renders alert content', (tester) async {
-    const alert = AlertItem(
+    final alert = AlertItem(
       title: 'Low Soil Moisture',
       message: 'Moisture dropped below threshold.',
       timeLabel: '1h ago',
+      timestamp: DateTime(2026, 7, 13, 12),
       severity: AlertSeverity.warning,
       icon: 'assets/svgs/drop.svg',
     );
 
-    await tester.pumpWidget(
-      buildResponsiveTestApp(const AlertCard(alert: alert)),
-    );
+    await tester.pumpWidget(buildResponsiveTestApp(AlertCard(alert: alert)));
 
     expect(find.text('Low Soil Moisture'), findsOneWidget);
     expect(find.text('1h ago'), findsOneWidget);

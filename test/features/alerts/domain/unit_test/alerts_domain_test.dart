@@ -12,6 +12,10 @@ class _FailingAlertsRepo implements AlertsRepository {
   Future<List<AlertSection>> getAlertSections() async {
     throw Exception('x');
   }
+
+  @override
+  Stream<List<AlertSection>> watchAlertSections() =>
+      Stream<List<AlertSection>>.error(Exception('x'));
 }
 
 void main() {

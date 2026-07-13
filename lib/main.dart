@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'core/services/logger/logger_service.dart';
 import 'core/services/notifications/notification_local_handler.dart';
 import 'core/services/notifications/sensor_alert_monitor.dart';
+import 'core/services/settings/threshold_settings_service.dart';
 
 void main() async {
   // Ensure flutter bindings are initialized.
@@ -23,10 +24,21 @@ void main() async {
   // Initialize dependencies
   await initializeDependencies();
 
+  // Load persisted sensor thresholds before evaluating the first reading.
+  try {
+    await di<ThresholdSettingsService>().load();
+  } catch (error, stackTrace) {
+    LoggerService(className: 'main').error(
+      'Could not load saved sensor thresholds; using defaults.',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+
   // Local threshold-crossing notifications
   await di<NotificationLocalHandler>().initialize();
   await Permission.notification.request();
-  di<SensorAlertMonitor>().start();
+  await di<SensorAlertMonitor>().start();
 
   // Set system styles
   SystemUtils.setDefaultSystemUI();

@@ -103,14 +103,6 @@ class _HomeDashboardBody extends StatelessWidget {
           Row(
             children: [
               HomeActionButton(
-                label: 'Water Logs',
-                icon: AppAssets.timeRefresh,
-                onPressed: () {
-                  HomeWaterLogsSheet.show(context: context);
-                },
-              ),
-              SizedBox(width: AppSpacing.md.w),
-              HomeActionButton(
                 label: 'Pump Control',
                 icon: AppAssets.pump,
                 isActive: dashboard.pumpOn,

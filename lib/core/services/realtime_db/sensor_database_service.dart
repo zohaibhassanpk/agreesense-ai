@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 import '../../constants/sensor_db_constants.dart';
+import '../../entities/app_user.dart';
 import '../logger/logger_service.dart';
 
 /// A point-in-time reading from the field's `current` node.
@@ -70,19 +71,53 @@ class SensorDatabaseService {
     className: 'SensorDatabaseService',
   );
 
-  DatabaseReference get _fieldRef =>
-      _database.ref(SensorDbConstants.fieldPath());
+  DatabaseReference _fieldRef(String userKey) =>
+      _database.ref(SensorDbConstants.fieldPath(userKey: userKey));
 
   DatabaseReference get _pumpRef =>
       _database.ref(SensorDbConstants.pumpStatusPath);
 
   /// Live stream of the field's `current` node. Emits null when the node is
   /// missing or malformed.
-  Stream<FieldCurrentReading?> watchCurrent() {
-    return _fieldRef
+  Stream<FieldCurrentReading?> watchCurrent({required String userKey}) {
+    return _fieldRef(userKey)
         .child('current')
         .onValue
         .map((DatabaseEvent event) => _parseCurrent(event.snapshot.value));
+  }
+
+  /// Resolves the authenticated user's linked field key when one exists.
+  ///
+  /// Email is tried before phone number. Any missing node or Firebase failure
+  /// falls through to the next candidate, then to the shared demo hardware
+  /// key so an unlinked account still has a usable dashboard.
+  Future<String> resolveUserKey(AppUser? user) async {
+    final String? email = user?.email;
+    final String? phoneNumber = user?.phoneNumber;
+    final List<String> candidates = <String>[
+      if (email != null && email.isNotEmpty)
+        SensorDbConstants.sanitizeRtdbKey(email),
+      if (phoneNumber != null && phoneNumber.isNotEmpty)
+        SensorDbConstants.sanitizeRtdbKey(phoneNumber),
+    ];
+
+    for (final String key in candidates) {
+      try {
+        final DataSnapshot snapshot = await _fieldRef(
+          key,
+        ).child('current').get();
+        if (snapshot.exists) {
+          return key;
+        }
+      } catch (error) {
+        _logger.debug(
+          'Could not resolve sensor data for user key candidate',
+          data: error,
+        );
+      }
+    }
+
+    return SensorDbConstants.defaultUserKey;
   }
 
   /// Live stream of the global pump control flag.
@@ -115,23 +150,24 @@ class SensorDatabaseService {
   /// an empty local cache, or a rules denial) — an unindexed `orderByChild`
   /// query would silently download the whole node instead of throwing, so
   /// that approach is intentionally avoided here.
-  Future<List<SensorSample>> getHistoryFrom(DateTime start) async {
+  Future<List<SensorSample>> getHistoryFrom(
+    DateTime start, {
+    required String userKey,
+  }) async {
     final int startMs = start.millisecondsSinceEpoch;
     DataSnapshot snapshot;
 
     try {
-      snapshot = await _fieldRef
-          .child('history')
-          .orderByKey()
-          .startAt(startMs.toString())
-          .get();
+      snapshot = await _fieldRef(
+        userKey,
+      ).child('history').orderByKey().startAt(startMs.toString()).get();
     } catch (error) {
       _logger.warning(
         'Range query on history failed, falling back to full read',
         data: error,
       );
       try {
-        snapshot = await _fieldRef.child('history').get();
+        snapshot = await _fieldRef(userKey).child('history').get();
       } catch (fallbackError, fallbackStackTrace) {
         _logger.error(
           'Failed to read sensor history',
@@ -152,6 +188,34 @@ class SensorDatabaseService {
       (SensorSample a, SensorSample b) => a.timestamp.compareTo(b.timestamp),
     );
     return samples;
+  }
+
+  /// Streams history samples at or after [start], sorted by timestamp.
+  Stream<List<SensorSample>> watchHistoryFrom(
+    DateTime start, {
+    required String userKey,
+  }) {
+    final int startMs = start.millisecondsSinceEpoch;
+
+    return _fieldRef(userKey)
+        .child('history')
+        .orderByKey()
+        .startAt(startMs.toString())
+        .onValue
+        .map((DatabaseEvent event) => _parseHistory(event.snapshot.value))
+        .map((List<SensorSample> samples) {
+          final List<SensorSample> filtered = samples
+              .where(
+                (SensorSample sample) =>
+                    sample.timestamp.millisecondsSinceEpoch >= startMs,
+              )
+              .toList();
+          filtered.sort(
+            (SensorSample a, SensorSample b) =>
+                a.timestamp.compareTo(b.timestamp),
+          );
+          return filtered;
+        });
   }
 
   FieldCurrentReading? _parseCurrent(Object? raw) {

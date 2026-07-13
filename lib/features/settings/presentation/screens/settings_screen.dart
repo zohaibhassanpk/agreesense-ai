@@ -53,10 +53,7 @@ class _SettingsView extends StatelessWidget {
           children: [
             const SettingsHeader(),
             Expanded(
-              child: _SettingsBody(
-                dashboard: dashboard,
-                provider: provider,
-              ),
+              child: _SettingsBody(dashboard: dashboard, provider: provider),
             ),
           ],
         );
@@ -66,10 +63,7 @@ class _SettingsView extends StatelessWidget {
 }
 
 class _SettingsBody extends StatelessWidget {
-  const _SettingsBody({
-    required this.dashboard,
-    required this.provider,
-  });
+  const _SettingsBody({required this.dashboard, required this.provider});
 
   final SettingsDashboard dashboard;
   final SettingsProvider provider;
@@ -105,8 +99,13 @@ class _SettingsBody extends StatelessWidget {
         SettingsThresholdCard(
           minMoisture: provider.minMoisture,
           maxTemperature: provider.maxTemperature,
+          maxHumidity: provider.maxHumidity,
           onMinMoistureChanged: provider.updateMinMoisture,
+          onMinMoistureChangeEnd: provider.commitMinMoisture,
           onMaxTemperatureChanged: provider.updateMaxTemperature,
+          onMaxTemperatureChangeEnd: provider.commitMaxTemperature,
+          onMaxHumidityChanged: provider.updateMaxHumidity,
+          onMaxHumidityChangeEnd: provider.commitMaxHumidity,
         ),
         SizedBox(height: AppSpacing.x2l.h),
         Padding(
@@ -141,10 +140,10 @@ class _ClearLocalDataButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle textStyle =
         (context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium).copyWith(
-      color: AppColors.error,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    );
+          color: AppColors.error,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0,
+        );
 
     return InkWell(
       onTap: onPressed,
@@ -155,9 +154,7 @@ class _ClearLocalDataButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppBorderRadius.s16.r),
-          border: Border.all(
-            color: AppColors.error.withValues(alpha: 0.2),
-          ),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
           boxShadow: [
             BoxShadow(
               color: AppColors.black.withValues(alpha: 0.04),
@@ -181,8 +178,8 @@ class _SettingsErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle style =
         (context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium).copyWith(
-      color: AppColors.textSecondary,
-    );
+          color: AppColors.textSecondary,
+        );
 
     return Center(
       child: Padding(
@@ -236,16 +233,8 @@ void _showCropSelectorSheet(
               isSelected: selectedCrop == 'Tobacco',
               enabled: true,
             ),
-            _CropOption(
-              label: 'Maize',
-              isSelected: false,
-              enabled: false,
-            ),
-            _CropOption(
-              label: 'Wheat',
-              isSelected: false,
-              enabled: false,
-            ),
+            _CropOption(label: 'Maize', isSelected: false, enabled: false),
+            _CropOption(label: 'Wheat', isSelected: false, enabled: false),
           ],
         ),
       );
@@ -271,10 +260,10 @@ class _CropOption extends StatelessWidget {
         : AppColors.textTertiary;
     final TextStyle labelStyle =
         (context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium).copyWith(
-      color: textColor,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    );
+          color: textColor,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0,
+        );
 
     return Padding(
       padding: EdgeInsets.symmetric(vertical: AppSpacing.sm.h),
@@ -289,9 +278,7 @@ class _CropOption extends StatelessWidget {
                 color: isSelected ? AppColors.primary : AppColors.border,
                 width: 1,
               ),
-              color: isSelected
-                  ? AppColors.primary
-                  : AppColors.surface,
+              color: isSelected ? AppColors.primary : AppColors.surface,
             ),
             child: isSelected
                 ? Center(
@@ -312,9 +299,8 @@ class _CropOption extends StatelessWidget {
             SizedBox(width: AppSpacing.sm.w),
             Text(
               'Soon',
-              style:
-                  (context.textTheme.labelSmall ?? AppTextStyles.labelSmall)
-                      .copyWith(color: AppColors.textTertiary),
+              style: (context.textTheme.labelSmall ?? AppTextStyles.labelSmall)
+                  .copyWith(color: AppColors.textTertiary),
             ),
           ],
         ],

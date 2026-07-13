@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import '../../../../core/constants/app_assets.dart';
+import '../../../../core/providers/auth_session_provider.dart';
 import '../../../../core/services/realtime_db/sensor_database_service.dart';
 import '../../domain/entities/analytics_time_range.dart';
 import '../models/analytics_chart_point_model.dart';
@@ -9,6 +12,7 @@ import '../models/analytics_period_data_model.dart';
 
 abstract class AnalyticsRemoteDataSource {
   Future<AnalyticsDashboardModel> getDashboard();
+  Stream<AnalyticsDashboardModel> watchDashboard();
 }
 
 /// Builds the analytics dashboard from the field's `history` samples.
@@ -18,13 +22,18 @@ abstract class AnalyticsRemoteDataSource {
 /// 0..1 chart space the painter expects (y is top-anchored, so higher
 /// values map to smaller y).
 class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
-  AnalyticsRemoteDataSourceImpl({required this.sensorDatabase});
+  AnalyticsRemoteDataSourceImpl({
+    required this.sensorDatabase,
+    required this.authSessionProvider,
+  });
 
   final SensorDatabaseService sensorDatabase;
+  final AuthSessionProvider authSessionProvider;
 
   static const Duration _dayWindow = Duration(hours: 24);
   static const Duration _weekWindow = Duration(days: 7);
   static const Duration _monthWindow = Duration(days: 28);
+  static const Duration _refreshInterval = Duration(minutes: 1);
 
   /// Vertical padding of the normalized chart space, so curves stay clear of
   /// the card edges like the design mocks.
@@ -67,13 +76,96 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
     ),
   ];
 
+  static final _MetricSpec _lightMetric = _MetricSpec(
+    seriesLabel: 'Light Intensity',
+    averageLabel: 'Light Intensity',
+    icon: AppAssets.sun,
+    colorKey: 'yellow',
+    unit: 'lux',
+    minValue: 0,
+    maxValue: 100000,
+    valueOf: (SensorSample sample) => sample.lightLux,
+  );
+
   @override
   Future<AnalyticsDashboardModel> getDashboard() async {
     final DateTime now = DateTime.now();
+    final String userKey = await sensorDatabase.resolveUserKey(
+      authSessionProvider.user,
+    );
     final List<SensorSample> samples = await sensorDatabase.getHistoryFrom(
       now.subtract(_monthWindow),
+      userKey: userKey,
     );
 
+    return _buildDashboard(samples: samples, now: now);
+  }
+
+  @override
+  Stream<AnalyticsDashboardModel> watchDashboard() {
+    late StreamController<AnalyticsDashboardModel> controller;
+    StreamSubscription<List<SensorSample>>? historySubscription;
+    Timer? refreshTimer;
+
+    List<SensorSample> latestSamples = const [];
+    bool hasSamples = false;
+    bool isActive = false;
+
+    void emit() {
+      if (!isActive || !hasSamples || controller.isClosed) {
+        return;
+      }
+      controller.add(
+        _buildDashboard(samples: latestSamples, now: DateTime.now()),
+      );
+    }
+
+    void addError(Object error, StackTrace stackTrace) {
+      if (isActive && !controller.isClosed) {
+        controller.addError(error, stackTrace);
+      }
+    }
+
+    controller = StreamController<AnalyticsDashboardModel>(
+      onListen: () async {
+        isActive = true;
+        try {
+          final String userKey = await sensorDatabase.resolveUserKey(
+            authSessionProvider.user,
+          );
+          if (!isActive || controller.isClosed) {
+            return;
+          }
+
+          historySubscription = sensorDatabase
+              .watchHistoryFrom(
+                DateTime.now().subtract(_monthWindow),
+                userKey: userKey,
+              )
+              .listen((List<SensorSample> samples) {
+                latestSamples = samples;
+                hasSamples = true;
+                emit();
+              }, onError: addError);
+          refreshTimer = Timer.periodic(_refreshInterval, (_) => emit());
+        } catch (error, stackTrace) {
+          addError(error, stackTrace);
+        }
+      },
+      onCancel: () async {
+        isActive = false;
+        refreshTimer?.cancel();
+        await historySubscription?.cancel();
+      },
+    );
+
+    return controller.stream;
+  }
+
+  AnalyticsDashboardModel _buildDashboard({
+    required List<SensorSample> samples,
+    required DateTime now,
+  }) {
     return AnalyticsDashboardModel(
       title: 'Analytics',
       chartTitle: 'Combined Metrics',
@@ -152,6 +244,14 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
                 _buildAverage(metric: metric, samples: windowSamples),
           )
           .toList(),
+      lightIntensitySeries: _buildSeries(
+        metric: _lightMetric,
+        samples: windowSamples,
+        windowStart: windowStart,
+        window: window,
+        bucketCount: bucketCount,
+      ),
+      lightIntensityStats: _buildLightStats(windowSamples),
     );
   }
 
@@ -242,6 +342,69 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
     );
   }
 
+  List<AnalyticsMetricAverageModel> _buildLightStats(
+    List<SensorSample> samples,
+  ) {
+    final List<double> values = samples
+        .map((SensorSample sample) => sample.lightLux)
+        .whereType<double>()
+        .toList();
+
+    SensorSample? latestSample;
+    for (final SensorSample sample in samples) {
+      if (sample.lightLux == null) {
+        continue;
+      }
+      if (latestSample == null ||
+          sample.timestamp.isAfter(latestSample.timestamp)) {
+        latestSample = sample;
+      }
+    }
+
+    final String averageValue;
+    final String minimumValue;
+    final String maximumValue;
+    final String latestValue;
+    if (values.isEmpty) {
+      averageValue = '--';
+      minimumValue = '--';
+      maximumValue = '--';
+      latestValue = '--';
+    } else {
+      final double average =
+          values.reduce((double a, double b) => a + b) / values.length;
+      final double minimum = values.reduce(
+        (double a, double b) => a < b ? a : b,
+      );
+      final double maximum = values.reduce(
+        (double a, double b) => a > b ? a : b,
+      );
+      averageValue = _formatLux(average);
+      minimumValue = _formatLux(minimum);
+      maximumValue = _formatLux(maximum);
+      latestValue = _formatLux(latestSample!.lightLux!);
+    }
+
+    return [
+      _buildLightStat(label: 'Average', value: averageValue),
+      _buildLightStat(label: 'Minimum', value: minimumValue),
+      _buildLightStat(label: 'Maximum', value: maximumValue),
+      _buildLightStat(label: 'Latest Reading', value: latestValue),
+    ];
+  }
+
+  AnalyticsMetricAverageModel _buildLightStat({
+    required String label,
+    required String value,
+  }) {
+    return AnalyticsMetricAverageModel(
+      label: label,
+      value: value,
+      icon: AppAssets.sun,
+      colorKey: 'yellow',
+    );
+  }
+
   /// Maps a metric value into the painter's top-anchored 0..1 space.
   double _normalize(double value, _MetricSpec metric) {
     final double fraction =
@@ -282,6 +445,8 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
     }
     return rounded.toStringAsFixed(1);
   }
+
+  String _formatLux(double value) => '${_formatValue(value)} lux';
 }
 
 class _MetricSpec {

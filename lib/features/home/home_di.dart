@@ -13,7 +13,11 @@ class HomeDI {
     );
 
     di.registerLazySingleton<HomeRemoteDataSource>(
-      () => HomeRemoteDataSourceImpl(sensorDatabase: di()),
+      () => HomeRemoteDataSourceImpl(
+        sensorDatabase: di(),
+        authSessionProvider: di(),
+        thresholdSettings: di(),
+      ),
     );
 
     di.registerLazySingleton<HomeRepository>(

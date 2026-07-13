@@ -16,7 +16,7 @@ class SettingsDI {
     );
 
     di.registerFactory<SettingsProvider>(
-      () => SettingsProvider(repository: di()),
+      () => SettingsProvider(repository: di(), thresholdSettings: di()),
     );
   }
 }

@@ -5,8 +5,7 @@ class AppAssets {
   static const String alertIcon = '${_svgsPath}alerticon.svg';
   static const String alertIconSelected = '${_svgsPath}alerticon_selected.svg';
   static const String analytics = '${_svgsPath}analytics.svg';
-  static const String analyticsSelected =
-      '${_svgsPath}analytics_selected.svg';
+  static const String analyticsSelected = '${_svgsPath}analytics_selected.svg';
   static const String bluetooth = '${_svgsPath}bluetooth.svg';
   static const String backArrow = '${_svgsPath}backarrow.svg';
   static const String box = '${_svgsPath}box.svg';
@@ -40,6 +39,5 @@ class AppAssets {
   static const String squareBluetooth = '${_svgsPath}squarebluetooth.svg';
   static const String sun = '${_svgsPath}sun.svg';
   static const String temprature = '${_svgsPath}temprature.svg';
-  static const String timeRefresh = '${_svgsPath}timerefresh.svg';
   static const String wayicon = '${_svgsPath}wayicon.svg';
 }

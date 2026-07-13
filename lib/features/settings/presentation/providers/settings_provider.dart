@@ -1,25 +1,27 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/services/settings/threshold_settings_service.dart';
 import '../../domain/entities/settings_dashboard.dart';
 import '../../domain/repositories/settings_repository.dart';
 
 class SettingsProvider extends ChangeNotifier {
-  SettingsProvider({required this.repository});
+  SettingsProvider({required this.repository, required this.thresholdSettings});
 
   final SettingsRepository repository;
+  final ThresholdSettingsService thresholdSettings;
 
   SettingsDashboard? _dashboard;
   bool _isLoading = false;
   String? _errorMessage;
-  double _minMoisture = 0;
-  double _maxTemperature = 0;
   bool _pushNotificationsEnabled = false;
+  bool _isListeningToThresholds = false;
 
   SettingsDashboard? get dashboard => _dashboard;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  double get minMoisture => _minMoisture;
-  double get maxTemperature => _maxTemperature;
+  double get minMoisture => thresholdSettings.minMoisture;
+  double get maxTemperature => thresholdSettings.maxTemperature;
+  double get maxHumidity => thresholdSettings.maxHumidity;
   bool get pushNotificationsEnabled => _pushNotificationsEnabled;
 
   Future<void> loadSettings() async {
@@ -30,11 +32,10 @@ class SettingsProvider extends ChangeNotifier {
     try {
       _dashboard = await repository.getDashboard();
       if (_dashboard != null) {
-        _minMoisture = _dashboard!.minMoisture;
-        _maxTemperature = _dashboard!.maxTemperature;
-        _pushNotificationsEnabled =
-            _dashboard!.pushNotificationsEnabled;
+        _pushNotificationsEnabled = _dashboard!.pushNotificationsEnabled;
       }
+      _listenToThresholdSettings();
+      await thresholdSettings.load();
     } catch (_) {
       _errorMessage = 'Unable to load settings.';
     } finally {
@@ -43,18 +44,52 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
-  void updateMinMoisture(double value) {
-    _minMoisture = value;
-    notifyListeners();
+  Future<void> updateMinMoisture(double value) {
+    return thresholdSettings.setMinMoisture(value, persist: false);
   }
 
-  void updateMaxTemperature(double value) {
-    _maxTemperature = value;
-    notifyListeners();
+  Future<void> commitMinMoisture(double value) {
+    return thresholdSettings.setMinMoisture(value);
+  }
+
+  Future<void> updateMaxTemperature(double value) {
+    return thresholdSettings.setMaxTemperature(value, persist: false);
+  }
+
+  Future<void> commitMaxTemperature(double value) {
+    return thresholdSettings.setMaxTemperature(value);
+  }
+
+  Future<void> updateMaxHumidity(double value) {
+    return thresholdSettings.setMaxHumidity(value, persist: false);
+  }
+
+  Future<void> commitMaxHumidity(double value) {
+    return thresholdSettings.setMaxHumidity(value);
   }
 
   void togglePushNotifications(bool value) {
     _pushNotificationsEnabled = value;
     notifyListeners();
+  }
+
+  void _listenToThresholdSettings() {
+    if (_isListeningToThresholds) {
+      return;
+    }
+    thresholdSettings.addListener(_notifyThresholdChange);
+    _isListeningToThresholds = true;
+  }
+
+  void _notifyThresholdChange() {
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    if (_isListeningToThresholds) {
+      thresholdSettings.removeListener(_notifyThresholdChange);
+    }
+    super.dispose();
   }
 }

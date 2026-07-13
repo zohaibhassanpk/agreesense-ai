@@ -17,7 +17,10 @@
       "Bash(adb devices *)",
       "Bash(git checkout *)",
       "Bash(echo \"exit code: $?\")",
-      "Bash(echo \"format exit: $?\")"
+      "Bash(echo \"format exit: $?\")",
+      "Bash(curl -s -m 10 \"https://agrisenseai-app-default-rtdb.asia-southeast1.firebasedatabase.app/.json?shallow=true\")",
+      "Bash(curl -s -m 10 \"https://agrisenseai-app-default-rtdb.asia-southeast1.firebasedatabase.app/users.json?shallow=true\")",
+      "Bash(curl -s -m 10 \"https://agrisenseai-app-default-rtdb.asia-southeast1.firebasedatabase.app/sensor/controls/pump_status.json\")"
     ]
   }
 }

@@ -23,4 +23,13 @@ class AnalyticsRepositoryImpl implements AnalyticsRepository {
     }
     return localDataSource.getDashboard();
   }
+
+  @override
+  Stream<AnalyticsDashboard> watchDashboard() {
+    final AnalyticsRemoteDataSource? remote = remoteDataSource;
+    if (remote != null) {
+      return remote.watchDashboard();
+    }
+    return localDataSource.getDashboard().asStream();
+  }
 }

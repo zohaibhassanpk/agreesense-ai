@@ -11,14 +11,24 @@ class SettingsThresholdCard extends StatelessWidget {
     super.key,
     required this.minMoisture,
     required this.maxTemperature,
+    required this.maxHumidity,
     required this.onMinMoistureChanged,
+    required this.onMinMoistureChangeEnd,
     required this.onMaxTemperatureChanged,
+    required this.onMaxTemperatureChangeEnd,
+    required this.onMaxHumidityChanged,
+    required this.onMaxHumidityChangeEnd,
   });
 
   final double minMoisture;
   final double maxTemperature;
+  final double maxHumidity;
   final ValueChanged<double> onMinMoistureChanged;
+  final ValueChanged<double> onMinMoistureChangeEnd;
   final ValueChanged<double> onMaxTemperatureChanged;
+  final ValueChanged<double> onMaxTemperatureChangeEnd;
+  final ValueChanged<double> onMaxHumidityChanged;
+  final ValueChanged<double> onMaxHumidityChangeEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -45,16 +55,29 @@ class SettingsThresholdCard extends StatelessWidget {
             min: 0,
             max: 100,
             onChanged: onMinMoistureChanged,
+            onChangeEnd: onMinMoistureChangeEnd,
           ),
           SizedBox(height: AppSpacing.lg.h),
           SettingsSliderRow(
             title: 'Max. Temperature',
-              valueLabel: '${maxTemperature.toStringAsFixed(0)}\u00B0C',
+            valueLabel: '${maxTemperature.toStringAsFixed(0)}\u00B0C',
             value: maxTemperature,
             min: 0,
             max: 50,
             activeColor: AppColors.error,
             onChanged: onMaxTemperatureChanged,
+            onChangeEnd: onMaxTemperatureChangeEnd,
+          ),
+          SizedBox(height: AppSpacing.lg.h),
+          SettingsSliderRow(
+            title: 'Max. Humidity',
+            valueLabel: '${maxHumidity.toStringAsFixed(0)}%',
+            value: maxHumidity,
+            min: 0,
+            max: 100,
+            activeColor: AppColors.accentBlue,
+            onChanged: onMaxHumidityChanged,
+            onChangeEnd: onMaxHumidityChangeEnd,
           ),
         ],
       ),
