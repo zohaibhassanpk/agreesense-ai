@@ -10,6 +10,8 @@ class AnalyticsPeriodData {
     required this.averagesTitle,
     required this.metricSeries,
     required this.averages,
+    this.lightIntensitySeries,
+    this.lightIntensityStats,
   });
 
   final AnalyticsTimeRange range;
@@ -18,4 +20,6 @@ class AnalyticsPeriodData {
   final String averagesTitle;
   final List<AnalyticsMetricSeries> metricSeries;
   final List<AnalyticsMetricAverage> averages;
+  final AnalyticsMetricSeries? lightIntensitySeries;
+  final List<AnalyticsMetricAverage>? lightIntensityStats;
 }

@@ -1,25 +1,41 @@
 # Home & Analytics — Live Firebase Data
 
-## What's done
+Status: **implemented.**
 
-The Home and Analytics tabs now show real sensor data from Firebase Realtime Database instead of mock data. Everything else in the app (Devices, Alerts, Settings, Profile) is unchanged and still mocked.
+Home and Analytics read authenticated Firebase Realtime Database (RTDB) data. Home listens to the field's `current` node, while Analytics listens only to `history`.
 
-## How Home works
+## User field resolution
 
-- Listens live to `users/zohaibhassanpk2/farms/farm_01/fields/field_01/current` — updates the screen the instant the hardware writes a new reading, no refresh needed.
-- Shows 4 cards: **Soil Moisture**, **Temperature**, **Humidity**, **Light Intensity** (swapped in for the design's "Soil pH" card — your hardware has a light sensor, not a pH probe).
-- A card turns yellow when its value crosses a threshold: moisture < 30%, temperature > 35°C, humidity outside 30–85%. Thresholds are hardcoded in `lib/core/constants/sensor_db_constants.dart` for now (see the Notifications plan for making these user-editable).
-- Connection pill shows "Device Connected (Live)" or "Device Offline" — based on the hardware's `deviceOnline` flag *and* how recent the last reading is (a reading older than 30 minutes is treated as offline even if the flag is stuck on).
-- "Smart Action" card generates real advice from the live values (e.g. tells you to irrigate when moisture is low) instead of static copy.
-- Pump Control writes to `sensor/controls/pump_status`; the toggle reflects the real value from Firebase, and shows an error message if the write fails.
+The app no longer assumes that every account owns the hardcoded demo field.
 
-## How Analytics works
+1. It sanitizes the signed-in user's email and phone number so they are valid RTDB keys.
+2. It checks those candidate user paths through the authenticated Firebase session.
+3. It uses the first candidate whose `current` node exists.
+4. If no linked user path is available, it falls back to the shared demo key, `zohaibhassanpk2`.
 
-- Day / Week / Month charts and averages are computed from the `history` node, bucketed and averaged per period.
-- Same swap as Home: the third chart line is **Humidity** instead of "Soil pH".
-- Pull-to-refresh reloads from Firebase; a failed refresh shows a message instead of failing silently, and a failed first load shows a **Retry** button.
+The fallback keeps the existing hardware demo usable while device-to-account linking remains out of scope. See `DEVICES_FEATURE_PLAN.md` for that future flow. RTDB access is locked down, so failures are handled inside the app rather than probed anonymously.
 
-## Things worth knowing
+## Home
 
-- The database currently has **no access rules** — anyone can read or write it with no login required. Fine for testing, but should be locked down before real users are on it.
-- All app users currently see the same field (`zohaibhassanpk2`'s), regardless of who logs in — there's no link yet between a Firebase account and a specific hardware device. See `DEVICES_FEATURE_PLAN.md`.
+- Listens live to `users/{resolvedUserKey}/farms/farm_01/fields/field_01/current`.
+- Shows Soil Moisture, Temperature, Humidity, and Light Intensity readings.
+- Uses the same canonical threshold profile as Settings and local alerts. The user-adjustable defaults are 60% minimum moisture, 30°C maximum temperature, and 75% maximum humidity; fixed Warning/Critical boundaries remain part of the shared profile.
+- Recomputes field status every 10 seconds. Online/offline is derived from the latest reading timestamp rather than a potentially stale hardware flag; exactly 30 seconds remains Online, and anything older is Offline.
+- Builds Smart Action guidance from the live readings and current saved thresholds.
+- Removes the old Water Logs action and its hardcoded mock sheet.
+- Keeps Pump Control synchronized with the global `sensor/controls/pump_status` value. Writes are made only by the authenticated app interaction; automated verification must not toggle the real relay.
+
+## Analytics
+
+- Reads and streams only `users/{resolvedUserKey}/farms/farm_01/fields/field_01/history`; it does not mix in the `current` node.
+- Subscribes to RTDB query updates, so newly added history records refresh the dashboard without polling.
+- Recomputes Day, Week, and Month buckets and their axis labels from the latest history snapshot.
+- Preserves the Combined Metrics chart for Soil Moisture, Temperature, and Humidity.
+- Adds a dedicated Light Intensity Trend chart using a fixed 0–100,000 lux domain.
+- Shows Average, Minimum, Maximum, and Latest Reading statistics for light intensity.
+- Skips missing metric values, displays `--` when a statistic has no data, and always supplies safe chart points for empty or single-reading windows.
+- Keeps the last good dashboard if a later stream error occurs; a first-load failure still surfaces a retryable error state.
+
+## Operational boundary
+
+There is still one physical demo node today. Resolving an account-specific key enables already-linked accounts, but it does not provision or pair hardware. Until device linking is implemented, unlinked accounts intentionally use the demo fallback.

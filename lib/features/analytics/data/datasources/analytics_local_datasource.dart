@@ -24,6 +24,13 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
           averagesTitle: 'Averages (Day)',
           metricSeries: _buildDaySeries(),
           averages: _buildAverages(),
+          lightIntensitySeries: _buildDayLightSeries(),
+          lightIntensityStats: _buildLightStats(
+            average: '52,100 lux',
+            minimum: '18,200 lux',
+            maximum: '83,400 lux',
+            latest: '58,700 lux',
+          ),
         ),
         AnalyticsPeriodDataModel(
           range: AnalyticsTimeRange.week,
@@ -32,6 +39,13 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
           averagesTitle: 'Averages (Week)',
           metricSeries: _buildWeekSeries(),
           averages: _buildAverages(),
+          lightIntensitySeries: _buildWeekLightSeries(),
+          lightIntensityStats: _buildLightStats(
+            average: '49,800 lux',
+            minimum: '15,600 lux',
+            maximum: '87,200 lux',
+            latest: '58,700 lux',
+          ),
         ),
         AnalyticsPeriodDataModel(
           range: AnalyticsTimeRange.month,
@@ -40,6 +54,13 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
           averagesTitle: 'Averages (Month)',
           metricSeries: _buildMonthSeries(),
           averages: _buildAverages(),
+          lightIntensitySeries: _buildMonthLightSeries(),
+          lightIntensityStats: _buildLightStats(
+            average: '48,400 lux',
+            minimum: '12,900 lux',
+            maximum: '91,100 lux',
+            latest: '58,700 lux',
+          ),
         ),
       ],
     );
@@ -199,6 +220,88 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
           AnalyticsChartPointModel(x: 0.67, y: 0.73),
           AnalyticsChartPointModel(x: 1.00, y: 0.73),
         ],
+      ),
+    ];
+  }
+
+  AnalyticsMetricSeriesModel _buildDayLightSeries() {
+    return const AnalyticsMetricSeriesModel(
+      label: 'Light Intensity',
+      icon: AppAssets.sun,
+      colorKey: 'yellow',
+      points: [
+        AnalyticsChartPointModel(x: 0.00, y: 0.82),
+        AnalyticsChartPointModel(x: 0.18, y: 0.70),
+        AnalyticsChartPointModel(x: 0.34, y: 0.48),
+        AnalyticsChartPointModel(x: 0.52, y: 0.22),
+        AnalyticsChartPointModel(x: 0.70, y: 0.28),
+        AnalyticsChartPointModel(x: 0.86, y: 0.45),
+        AnalyticsChartPointModel(x: 1.00, y: 0.58),
+      ],
+    );
+  }
+
+  AnalyticsMetricSeriesModel _buildWeekLightSeries() {
+    return const AnalyticsMetricSeriesModel(
+      label: 'Light Intensity',
+      icon: AppAssets.sun,
+      colorKey: 'yellow',
+      points: [
+        AnalyticsChartPointModel(x: 0.00, y: 0.52),
+        AnalyticsChartPointModel(x: 0.16, y: 0.44),
+        AnalyticsChartPointModel(x: 0.32, y: 0.38),
+        AnalyticsChartPointModel(x: 0.48, y: 0.50),
+        AnalyticsChartPointModel(x: 0.64, y: 0.31),
+        AnalyticsChartPointModel(x: 0.80, y: 0.42),
+        AnalyticsChartPointModel(x: 1.00, y: 0.47),
+      ],
+    );
+  }
+
+  AnalyticsMetricSeriesModel _buildMonthLightSeries() {
+    return const AnalyticsMetricSeriesModel(
+      label: 'Light Intensity',
+      icon: AppAssets.sun,
+      colorKey: 'yellow',
+      points: [
+        AnalyticsChartPointModel(x: 0.00, y: 0.54),
+        AnalyticsChartPointModel(x: 0.34, y: 0.47),
+        AnalyticsChartPointModel(x: 0.67, y: 0.39),
+        AnalyticsChartPointModel(x: 1.00, y: 0.44),
+      ],
+    );
+  }
+
+  List<AnalyticsMetricAverageModel> _buildLightStats({
+    required String average,
+    required String minimum,
+    required String maximum,
+    required String latest,
+  }) {
+    return [
+      AnalyticsMetricAverageModel(
+        label: 'Average',
+        value: average,
+        icon: AppAssets.sun,
+        colorKey: 'yellow',
+      ),
+      AnalyticsMetricAverageModel(
+        label: 'Minimum',
+        value: minimum,
+        icon: AppAssets.sun,
+        colorKey: 'yellow',
+      ),
+      AnalyticsMetricAverageModel(
+        label: 'Maximum',
+        value: maximum,
+        icon: AppAssets.sun,
+        colorKey: 'yellow',
+      ),
+      AnalyticsMetricAverageModel(
+        label: 'Latest Reading',
+        value: latest,
+        icon: AppAssets.sun,
+        colorKey: 'yellow',
       ),
     ];
   }

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/services/logger/logger_service.dart';
 import '../../domain/entities/alert_filter.dart';
 import '../../domain/entities/alert_item.dart';
 import '../../domain/entities/alert_section.dart';
@@ -9,12 +12,18 @@ class AlertsProvider extends ChangeNotifier {
   AlertsProvider({required this.repository});
 
   final AlertsRepository repository;
+  final LoggerService _logger = LoggerService(className: 'AlertsProvider');
+
+  static const Duration _firstLoadTimeout = Duration(seconds: 20);
 
   List<AlertSection> _sections = [];
   bool _isLoading = false;
   String? _errorMessage;
   AlertFilterType _selectedFilter = AlertFilterType.all;
   List<AlertFilter> _filters = const [];
+  StreamSubscription<List<AlertSection>>? _subscription;
+  Completer<void>? _firstEventCompleter;
+  bool _disposed = false;
 
   List<AlertSection> get sections => _sections;
   bool get isLoading => _isLoading;
@@ -27,18 +36,76 @@ class AlertsProvider extends ChangeNotifier {
   }
 
   Future<void> loadAlerts() async {
+    if (_disposed) {
+      return;
+    }
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
+    _completePendingLoad();
+    await _subscription?.cancel();
+    if (_disposed) {
+      return;
+    }
+    final Completer<void> firstEvent = Completer<void>();
+    _firstEventCompleter = firstEvent;
+
+    _subscription = repository.watchAlertSections().listen(
+      (List<AlertSection> sections) {
+        if (_disposed) {
+          if (!firstEvent.isCompleted) {
+            firstEvent.complete();
+          }
+          return;
+        }
+        _sections = sections;
+        _filters = _buildFilters(sections);
+        _errorMessage = null;
+        _isLoading = false;
+        notifyListeners();
+        if (!firstEvent.isCompleted) {
+          firstEvent.complete();
+        }
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _logger.error(
+          'Alerts stream failed',
+          error: error,
+          stackTrace: stackTrace,
+        );
+        if (_disposed) {
+          if (!firstEvent.isCompleted) {
+            firstEvent.complete();
+          }
+          return;
+        }
+        if (_sections.isEmpty) {
+          _errorMessage = 'Unable to load alerts.';
+        }
+        _isLoading = false;
+        notifyListeners();
+        if (!firstEvent.isCompleted) {
+          firstEvent.complete();
+        }
+      },
+    );
+
     try {
-      _sections = await repository.getAlertSections();
-      _filters = _buildFilters(_sections);
-    } catch (_) {
-      _errorMessage = 'Unable to load alerts.';
-    } finally {
+      await firstEvent.future.timeout(_firstLoadTimeout);
+    } on TimeoutException {
+      if (_disposed) {
+        return;
+      }
+      if (_sections.isEmpty) {
+        _errorMessage = 'Unable to load alerts.';
+      }
       _isLoading = false;
       notifyListeners();
+    } finally {
+      if (identical(_firstEventCompleter, firstEvent)) {
+        _firstEventCompleter = null;
+      }
     }
   }
 
@@ -83,10 +150,7 @@ class AlertsProvider extends ChangeNotifier {
 
     return [
       const AlertFilter(type: AlertFilterType.all, label: 'All'),
-      AlertFilter(
-        type: AlertFilterType.critical,
-        label: criticalLabel,
-      ),
+      AlertFilter(type: AlertFilterType.critical, label: criticalLabel),
       const AlertFilter(type: AlertFilterType.warnings, label: 'Warnings'),
     ];
   }
@@ -105,5 +169,20 @@ class AlertsProvider extends ChangeNotifier {
     }
 
     return counts;
+  }
+
+  void _completePendingLoad() {
+    final Completer<void>? pending = _firstEventCompleter;
+    if (pending != null && !pending.isCompleted) {
+      pending.complete();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _completePendingLoad();
+    _subscription?.cancel();
+    super.dispose();
   }
 }

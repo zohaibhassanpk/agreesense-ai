@@ -13,6 +13,7 @@ import '../../domain/entities/analytics_period_data.dart';
 import '../../domain/entities/analytics_time_range.dart';
 import '../providers/analytics_provider.dart';
 import 'analytics_header.dart';
+import 'analytics_light_intensity_card.dart';
 import 'analytics_metric_average_card.dart';
 import 'analytics_metric_chart_card.dart';
 import 'analytics_range_tabs.dart';
@@ -33,6 +34,8 @@ class AnalyticsScreenContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lightSeries = period.lightIntensitySeries;
+    final lightStats = period.lightIntensityStats;
     final TextStyle averagesTitleStyle =
         (context.textTheme.titleMedium ?? AppTextStyles.titleMedium).copyWith(
           color: AppColors.textPrimary,
@@ -100,6 +103,14 @@ class AnalyticsScreenContent extends StatelessWidget {
                     showIcon: true,
                     centerContent: false,
                   ),
+                  if (lightSeries != null && lightStats != null) ...[
+                    SizedBox(height: 24.h),
+                    AnalyticsLightIntensityCard(
+                      series: lightSeries,
+                      stats: lightStats,
+                      axisLabels: period.axisLabels,
+                    ),
+                  ],
                 ],
               ),
             ),

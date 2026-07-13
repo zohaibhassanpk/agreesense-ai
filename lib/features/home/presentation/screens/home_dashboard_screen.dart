@@ -13,10 +13,7 @@ class HomeDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const SafeArea(
-          bottom: false,
-          child: HomeDashboardHeader(),
-        ),
+        const SafeArea(bottom: false, child: HomeDashboardHeader()),
         Expanded(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
@@ -77,11 +74,6 @@ class HomeDashboardScreen extends StatelessWidget {
                 SizedBox(height: AppSpacing.x2l.h),
                 Row(
                   children: [
-                    const DashboardActionButton(
-                      label: 'Water Logs',
-                      icon: AppAssets.timeRefresh,
-                    ),
-                    SizedBox(width: AppSpacing.lg.w),
                     const DashboardActionButton(
                       label: 'Pump Control',
                       icon: AppAssets.pump,

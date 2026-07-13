@@ -2,7 +2,9 @@ import 'dart:async';
 
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/sensor_db_constants.dart';
+import '../../../../core/providers/auth_session_provider.dart';
 import '../../../../core/services/realtime_db/sensor_database_service.dart';
+import '../../../../core/services/settings/threshold_settings_service.dart';
 import '../../../../core/utils/relative_time.dart';
 import '../models/home_dashboard_model.dart';
 import '../models/sensor_reading_model.dart';
@@ -14,13 +16,19 @@ abstract class HomeRemoteDataSource {
 }
 
 class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
-  HomeRemoteDataSourceImpl({required this.sensorDatabase});
+  HomeRemoteDataSourceImpl({
+    required this.sensorDatabase,
+    required this.authSessionProvider,
+    required this.thresholdSettings,
+  });
 
   final SensorDatabaseService sensorDatabase;
+  final AuthSessionProvider authSessionProvider;
+  final ThresholdSettingsService thresholdSettings;
 
   /// Re-emission cadence that keeps the "Updated Xm ago" label and the
   /// staleness-based online state fresh between database events.
-  static const Duration _refreshInterval = Duration(minutes: 1);
+  static const Duration _refreshInterval = Duration(seconds: 10);
 
   @override
   Stream<HomeDashboardModel> watchDashboard() {
@@ -28,6 +36,7 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
     StreamSubscription<FieldCurrentReading?>? currentSubscription;
     StreamSubscription<bool>? pumpSubscription;
     Timer? refreshTimer;
+    bool isCancelled = false;
 
     FieldCurrentReading? reading;
     bool pumpOn = false;
@@ -41,25 +50,39 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
     }
 
     controller = StreamController<HomeDashboardModel>(
-      onListen: () {
-        currentSubscription = sensorDatabase.watchCurrent().listen((
-          FieldCurrentReading? value,
-        ) {
-          reading = value;
-          hasReading = true;
-          emit();
-        }, onError: controller.addError);
+      onListen: () async {
+        try {
+          final String userKey = await sensorDatabase.resolveUserKey(
+            authSessionProvider.user,
+          );
+          if (isCancelled || controller.isClosed) {
+            return;
+          }
 
-        pumpSubscription = sensorDatabase.watchPumpStatus().listen((
-          bool value,
-        ) {
-          pumpOn = value;
-          emit();
-        }, onError: controller.addError);
+          currentSubscription = sensorDatabase
+              .watchCurrent(userKey: userKey)
+              .listen((FieldCurrentReading? value) {
+                reading = value;
+                hasReading = true;
+                emit();
+              }, onError: controller.addError);
 
-        refreshTimer = Timer.periodic(_refreshInterval, (_) => emit());
+          pumpSubscription = sensorDatabase.watchPumpStatus().listen((
+            bool value,
+          ) {
+            pumpOn = value;
+            emit();
+          }, onError: controller.addError);
+
+          refreshTimer = Timer.periodic(_refreshInterval, (_) => emit());
+        } catch (error, stackTrace) {
+          if (!isCancelled && !controller.isClosed) {
+            controller.addError(error, stackTrace);
+          }
+        }
       },
       onCancel: () async {
+        isCancelled = true;
         refreshTimer?.cancel();
         await currentSubscription?.cancel();
         await pumpSubscription?.cancel();
@@ -77,12 +100,10 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
   HomeDashboardModel _mapDashboard(FieldCurrentReading? reading, bool pumpOn) {
     final DateTime? updatedAt = reading?.updatedAt;
 
-    // Simple online check: compare updatedAt straight against now. Under
-    // one minute old -> Online, otherwise -> Offline.
+    // Compare the sensor timestamp directly with now. The periodic re-emit
+    // above keeps this status current even between Firebase events.
     final bool isOnline =
-        updatedAt != null &&
-        DateTime.now().difference(updatedAt) <
-            SensorDbConstants.onlineStaleness;
+        updatedAt != null && SensorDbConstants.isReadingFresh(updatedAt);
 
     return HomeDashboardModel(
       greeting: 'Welcome back',
@@ -106,13 +127,14 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
     final double? light = reading?.lightLux;
 
     final bool moistureWarning =
-        moisture == null || moisture < SensorThresholds.minSoilMoisturePercent;
+        moisture == null || !thresholdSettings.isSoilMoistureNormal(moisture);
     final bool temperatureWarning =
-        temperature == null || temperature > SensorThresholds.maxTemperatureC;
+        temperature == null ||
+        !thresholdSettings.isTemperatureNormal(temperature);
     final bool humidityWarning =
-        humidity == null ||
-        humidity < SensorThresholds.minHumidityPercent ||
-        humidity > SensorThresholds.maxHumidityPercent;
+        humidity == null || !thresholdSettings.isHumidityNormal(humidity);
+    final bool lightWarning =
+        light == null || !thresholdSettings.isLightIntensityNormal(light);
 
     return [
       SensorReadingModel(
@@ -145,7 +167,7 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
         unit: 'lx',
         icon: AppAssets.sun,
         iconColorKey: 'yellow',
-        statusColorKey: light == null ? 'yellow' : 'primary',
+        statusColorKey: lightWarning ? 'yellow' : 'primary',
       ),
     ];
   }
@@ -155,8 +177,13 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
     // can never claim a reading is past a threshold it displays as equal to.
     final double? moisture = _roundToDisplay(reading?.soilMoisturePercent);
     final double? temperature = _roundToDisplay(reading?.temperatureC);
+    final double? humidity = _roundToDisplay(reading?.humidityPercent);
+    final double? light = _roundToDisplay(reading?.lightLux);
 
-    if (moisture == null && temperature == null) {
+    if (moisture == null &&
+        temperature == null &&
+        humidity == null &&
+        light == null) {
       return const SmartActionModel(
         title: 'Smart Action',
         message:
@@ -166,29 +193,93 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
       );
     }
 
-    if (moisture != null &&
-        moisture < SensorThresholds.minSoilMoisturePercent) {
+    if (moisture != null && moisture < thresholdSettings.minMoisture) {
       return SmartActionModel(
         title: 'Smart Action',
         message:
             'Soil moisture is at ${_formatValue(moisture)}%, below the '
-            '${SensorThresholds.minSoilMoisturePercent.round()}% threshold. ',
+            '${_formatValue(thresholdSettings.minMoisture)}% threshold. ',
         highlight: 'Irrigation recommended.',
       );
     }
 
-    if (temperature != null && temperature > SensorThresholds.maxTemperatureC) {
+    if (moisture != null &&
+        moisture > ThresholdSettingsService.soilMoistureWarningHigh) {
+      return SmartActionModel(
+        title: 'Smart Action',
+        message:
+            'Soil moisture is at ${_formatValue(moisture)}%, above the '
+            '${ThresholdSettingsService.soilMoistureWarningHigh.round()}% '
+            'optimal range. ',
+        highlight: 'Pause irrigation and check drainage.',
+      );
+    }
+
+    if (temperature != null && temperature > thresholdSettings.maxTemperature) {
       return SmartActionModel(
         title: 'Smart Action',
         message:
             'Temperature is ${_formatValue(temperature)}°C, above the '
-            '${SensorThresholds.maxTemperatureC.round()}°C threshold. '
+            '${_formatValue(thresholdSettings.maxTemperature)}°C threshold. '
             'Consider irrigating during ',
         highlight: 'cooler hours.',
       );
     }
 
-    if (moisture == null || temperature == null) {
+    if (temperature != null &&
+        temperature < ThresholdSettingsService.temperatureWarningLow) {
+      return SmartActionModel(
+        title: 'Smart Action',
+        message:
+            'Temperature is ${_formatValue(temperature)}°C, below the '
+            '${ThresholdSettingsService.temperatureWarningLow.round()}°C '
+            'optimal range. ',
+        highlight: 'Protect crops from cold stress.',
+      );
+    }
+
+    if (humidity != null && humidity > thresholdSettings.maxHumidity) {
+      return SmartActionModel(
+        title: 'Smart Action',
+        message:
+            'Humidity is ${_formatValue(humidity)}%, above the '
+            '${_formatValue(thresholdSettings.maxHumidity)}% threshold. ',
+        highlight: 'Improve ventilation and monitor disease risk.',
+      );
+    }
+
+    if (humidity != null &&
+        humidity < ThresholdSettingsService.humidityWarningLow) {
+      return SmartActionModel(
+        title: 'Smart Action',
+        message:
+            'Humidity is ${_formatValue(humidity)}%, below the '
+            '${ThresholdSettingsService.humidityWarningLow.round()}% '
+            'optimal range. ',
+        highlight: 'Watch for crop water stress.',
+      );
+    }
+
+    if (light != null && light < ThresholdSettingsService.lightWarningLow) {
+      return const SmartActionModel(
+        title: 'Smart Action',
+        message: 'Light intensity is below the optimal crop range. ',
+        highlight: 'Check for excessive shading.',
+      );
+    }
+
+    if (light != null && light > ThresholdSettingsService.lightWarningHigh) {
+      return const SmartActionModel(
+        title: 'Smart Action',
+        message: 'Light intensity is above the optimal crop range. ',
+        highlight: 'Monitor heat and light stress.',
+      );
+    }
+
+    if (moisture == null ||
+        temperature == null ||
+        humidity == null ||
+        light == null) {
       return const SmartActionModel(
         title: 'Smart Action',
         message: 'One or more sensors is not reporting. ',

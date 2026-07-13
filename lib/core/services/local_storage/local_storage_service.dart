@@ -1,5 +1,6 @@
-import '../logger/logger_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../logger/logger_service.dart';
 
 class LocalStorageService {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
@@ -13,6 +14,9 @@ class LocalStorageService {
   static const String _refreshTokenKey = 'auth_refresh_token';
   static const String _fcmTokenKey = 'fcm_token';
   static const String _notificationsEnabledKey = 'notifications_enabled';
+  static const String _minMoistureThresholdKey = 'min_moisture_threshold';
+  static const String _maxTemperatureThresholdKey = 'max_temperature_threshold';
+  static const String _maxHumidityThresholdKey = 'max_humidity_threshold';
 
   // ============ AUTH TOKEN METHODS ============
 
@@ -146,6 +150,56 @@ class LocalStorageService {
     await _secureStorage.write(
       key: _notificationsEnabledKey,
       value: enabled.toString(),
+    );
+  }
+
+  // ============ SENSOR THRESHOLDS ============
+
+  /// Returns the persisted minimum soil-moisture warning boundary.
+  Future<double?> getMinMoistureThreshold() async {
+    final String? stored = await _secureStorage.read(
+      key: _minMoistureThresholdKey,
+    );
+    return double.tryParse(stored ?? '');
+  }
+
+  /// Persists the minimum soil-moisture warning boundary.
+  Future<void> saveMinMoistureThreshold(double value) async {
+    await _secureStorage.write(
+      key: _minMoistureThresholdKey,
+      value: value.toString(),
+    );
+  }
+
+  /// Returns the persisted maximum-temperature warning boundary.
+  Future<double?> getMaxTemperatureThreshold() async {
+    final String? stored = await _secureStorage.read(
+      key: _maxTemperatureThresholdKey,
+    );
+    return double.tryParse(stored ?? '');
+  }
+
+  /// Persists the maximum-temperature warning boundary.
+  Future<void> saveMaxTemperatureThreshold(double value) async {
+    await _secureStorage.write(
+      key: _maxTemperatureThresholdKey,
+      value: value.toString(),
+    );
+  }
+
+  /// Returns the persisted maximum-humidity warning boundary.
+  Future<double?> getMaxHumidityThreshold() async {
+    final String? stored = await _secureStorage.read(
+      key: _maxHumidityThresholdKey,
+    );
+    return double.tryParse(stored ?? '');
+  }
+
+  /// Persists the maximum-humidity warning boundary.
+  Future<void> saveMaxHumidityThreshold(double value) async {
+    await _secureStorage.write(
+      key: _maxHumidityThresholdKey,
+      value: value.toString(),
     );
   }
 }

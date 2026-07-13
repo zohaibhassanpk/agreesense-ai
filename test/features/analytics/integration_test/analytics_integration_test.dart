@@ -12,6 +12,11 @@ class _FailingAnalyticsRepository implements AnalyticsRepository {
   Future<AnalyticsDashboard> getDashboard() async {
     throw Exception('analytics fail');
   }
+
+  @override
+  Stream<AnalyticsDashboard> watchDashboard() {
+    return Stream<AnalyticsDashboard>.error(Exception('analytics fail'));
+  }
 }
 
 void main() {

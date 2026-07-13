@@ -5,6 +5,7 @@ class SettingsDashboardModel extends SettingsDashboard {
     required super.selectedCrop,
     required super.minMoisture,
     required super.maxTemperature,
+    required super.maxHumidity,
     required super.pushNotificationsEnabled,
     required super.language,
   });

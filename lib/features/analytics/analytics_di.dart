@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 
+import '../../core/providers/auth_session_provider.dart';
 import 'data/datasources/analytics_local_datasource.dart';
 import 'data/datasources/analytics_remote_datasource.dart';
 import 'data/repositories/analytics_repository_impl.dart';
@@ -13,7 +14,10 @@ class AnalyticsDI {
     );
 
     di.registerLazySingleton<AnalyticsRemoteDataSource>(
-      () => AnalyticsRemoteDataSourceImpl(sensorDatabase: di()),
+      () => AnalyticsRemoteDataSourceImpl(
+        sensorDatabase: di(),
+        authSessionProvider: di<AuthSessionProvider>(),
+      ),
     );
 
     di.registerLazySingleton<AnalyticsRepository>(

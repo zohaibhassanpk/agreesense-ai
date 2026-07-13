@@ -9,8 +9,9 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   Future<SettingsDashboardModel> getDashboard() async {
     return const SettingsDashboardModel(
       selectedCrop: 'Tobacco',
-      minMoisture: 30,
-      maxTemperature: 35,
+      minMoisture: 60,
+      maxTemperature: 30,
+      maxHumidity: 75,
       pushNotificationsEnabled: true,
       language: 'English',
     );

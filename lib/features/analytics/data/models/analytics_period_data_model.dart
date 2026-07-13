@@ -10,5 +10,7 @@ class AnalyticsPeriodDataModel extends AnalyticsPeriodData {
     required super.averagesTitle,
     required List<AnalyticsMetricSeriesModel> super.metricSeries,
     required List<AnalyticsMetricAverageModel> super.averages,
+    AnalyticsMetricSeriesModel? super.lightIntensitySeries,
+    List<AnalyticsMetricAverageModel>? super.lightIntensityStats,
   });
 }
