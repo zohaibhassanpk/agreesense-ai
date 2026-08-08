@@ -238,7 +238,10 @@ class HomeActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color foregroundColor = isActive
+    final bool isEnabled = onPressed != null;
+    final Color foregroundColor = !isEnabled
+        ? AppColors.textTertiary
+        : isActive
         ? AppColors.primary
         : AppColors.darkGreen;
     final TextStyle labelStyle =
@@ -252,12 +255,12 @@ class HomeActionButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor: isActive
+          backgroundColor: isEnabled && isActive
               ? AppColors.primaryTint20
               : AppColors.surface,
           padding: EdgeInsets.symmetric(vertical: AppSpacing.md.h),
           side: BorderSide(
-            color: isActive ? AppColors.primary : AppColors.border,
+            color: isEnabled && isActive ? AppColors.primary : AppColors.border,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppBorderRadius.s16.r),
@@ -314,13 +317,22 @@ class HomePumpControlSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final HomeProvider provider = context.watch<HomeProvider>();
     final bool isPumpOn = provider.dashboard?.pumpOn ?? fallbackPumpOn;
+    final bool isUpdating = provider.isPumpUpdating;
+    final bool canControlPump = provider.canControlPump;
     final TextStyle titleStyle =
         context.textTheme.titleMedium ?? AppTextStyles.titleMedium;
 
     Future<void> handleTap(bool turnOn) async {
-      Navigator.of(context).pop();
+      final ModalRoute<dynamic>? sheetRoute = ModalRoute.of(context);
       final bool success = await provider.setPumpStatus(turnOn);
-      if (!success && context.mounted) {
+      if (!context.mounted) {
+        return;
+      }
+      if (success) {
+        if (sheetRoute?.isCurrent ?? false) {
+          Navigator.of(context).pop();
+        }
+      } else {
         CustomSnackbar.show(
           context: context,
           message: 'Could not update pump. Check your connection.',
@@ -347,14 +359,16 @@ class HomePumpControlSheet extends StatelessWidget {
             icon: AppAssets.pump,
             color: AppColors.darkGreen,
             isSelected: isPumpOn,
-            onTap: () => handleTap(true),
+            onTap: !canControlPump || isUpdating ? null : () => handleTap(true),
           ),
           _PumpActionTile(
             label: 'Turn Off',
             icon: AppAssets.pump,
             color: AppColors.error,
             isSelected: !isPumpOn,
-            onTap: () => handleTap(false),
+            onTap: !canControlPump || isUpdating
+                ? null
+                : () => handleTap(false),
           ),
         ],
       ),
@@ -373,7 +387,7 @@ class _PumpActionTile extends StatelessWidget {
 
   final String label;
   final String icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final Color color;
   final bool isSelected;
 

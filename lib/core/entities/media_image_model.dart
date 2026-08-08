@@ -5,11 +5,7 @@ import 'media_image_entity.dart';
 /// Includes [parseImageField] which handles both the legacy plain-URL
 /// string format and the new `{ url, alt_text, caption }` object format.
 class MediaImageModel extends MediaImageEntity {
-  const MediaImageModel({
-    required super.url,
-    super.altText,
-    super.caption,
-  });
+  const MediaImageModel({required super.url, super.altText, super.caption});
 
   factory MediaImageModel.fromJson(Map<String, dynamic> json) {
     return MediaImageModel(

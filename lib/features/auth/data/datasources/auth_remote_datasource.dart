@@ -38,9 +38,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw StateError('Missing Google authentication token.');
     }
 
-    final credential = GoogleAuthProvider.credential(
-      idToken: auth.idToken,
-    );
+    final credential = GoogleAuthProvider.credential(idToken: auth.idToken);
 
     return firebaseAuthService.signInWithCredential(credential);
   }

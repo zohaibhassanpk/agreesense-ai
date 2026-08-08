@@ -43,9 +43,32 @@ class SensorSample {
   final double? lightLux;
 }
 
+/// Live sensor operations consumed by the Home feature.
+abstract interface class LiveSensorDatabase {
+  Future<String> resolveUserKey(AppUser? user);
+  Future<FieldCurrentReading?> getCurrent({required String userKey});
+  Stream<FieldCurrentReading?> watchCurrent({required String userKey});
+  Stream<bool> watchPumpStatus({required String userUid});
+  Future<void> setPumpStatus({required String userUid, required bool isOn});
+}
+
+/// Historical sensor operations consumed by the Analytics feature.
+abstract interface class HistoricalSensorDatabase {
+  Future<String> resolveHistoryUserKey(AppUser? user);
+  Future<List<SensorSample>> getHistoryFrom(
+    DateTime start, {
+    required String userKey,
+  });
+  Stream<List<SensorSample>> watchHistoryFrom(
+    DateTime start, {
+    required String userKey,
+  });
+}
+
 /// Thin wrapper around the Firebase Realtime Database that exposes typed
 /// reads/streams for the sensor data written by the hardware node.
-class SensorDatabaseService {
+class SensorDatabaseService
+    implements LiveSensorDatabase, HistoricalSensorDatabase {
   SensorDatabaseService({FirebaseDatabase? database})
     : _database =
           database ??
@@ -74,39 +97,78 @@ class SensorDatabaseService {
   DatabaseReference _fieldRef(String userKey) =>
       _database.ref(SensorDbConstants.fieldPath(userKey: userKey));
 
-  DatabaseReference get _pumpRef =>
-      _database.ref(SensorDbConstants.pumpStatusPath);
+  DatabaseReference _pumpRef(String userUid) =>
+      _database.ref(SensorDbConstants.pumpStatusPath(userUid: userUid));
 
   /// Live stream of the field's `current` node. Emits null when the node is
   /// missing or malformed.
+  @override
   Stream<FieldCurrentReading?> watchCurrent({required String userKey}) {
+    _database.goOnline();
     return _fieldRef(userKey)
-        .child('current')
+        .child(SensorDbConstants.currentNode)
         .onValue
         .map((DatabaseEvent event) => _parseCurrent(event.snapshot.value));
   }
 
+  /// Reads the latest value once. Used by the Android background worker so it
+  /// does not keep a Realtime Database listener alive after the task exits.
+  @override
+  Future<FieldCurrentReading?> getCurrent({required String userKey}) async {
+    _database.goOnline();
+    final DataSnapshot snapshot = await _fieldRef(
+      userKey,
+    ).child(SensorDbConstants.currentNode).get();
+    return _parseCurrent(snapshot.value);
+  }
+
   /// Resolves the authenticated user's linked field key when one exists.
   ///
-  /// Email is tried before phone number. Any missing node or Firebase failure
-  /// falls through to the next candidate, then to the shared demo hardware
-  /// key so an unlinked account still has a usable dashboard.
-  Future<String> resolveUserKey(AppUser? user) async {
-    final String? email = user?.email;
-    final String? phoneNumber = user?.phoneNumber;
-    final List<String> candidates = <String>[
-      if (email != null && email.isNotEmpty)
-        SensorDbConstants.sanitizeRtdbKey(email),
-      if (phoneNumber != null && phoneNumber.isNotEmpty)
-        SensorDbConstants.sanitizeRtdbKey(phoneNumber),
-    ];
+  /// The checked-in RTDB schema keys the hardware field by the Google email's
+  /// local part. UID, sanitized full-email, and phone keys are also checked so
+  /// already-provisioned accounts using those schemes continue to work.
+  ///
+  /// This deliberately does not fall back to another account's field. If no
+  /// candidate currently exists, the stream is attached to the primary
+  /// identity-derived path so it will receive data when that field is created.
+  @override
+  Future<String> resolveUserKey(AppUser? user) {
+    return _resolveUserKeyForNode(
+      user,
+      nodeName: SensorDbConstants.currentNode,
+    );
+  }
+
+  /// Resolves an account using only its `history` node. Analytics uses this
+  /// method so it never needs to read or probe `current`.
+  @override
+  Future<String> resolveHistoryUserKey(AppUser? user) {
+    return _resolveUserKeyForNode(
+      user,
+      nodeName: SensorDbConstants.historyNode,
+    );
+  }
+
+  Future<String> _resolveUserKeyForNode(
+    AppUser? user, {
+    required String nodeName,
+  }) async {
+    if (user == null) {
+      throw StateError('An authenticated user is required for sensor data.');
+    }
+
+    final List<String> candidates = SensorDbConstants.userKeyCandidates(
+      uid: user.uid,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+    );
+    if (candidates.isEmpty) {
+      throw StateError('The authenticated user has no usable database key.');
+    }
 
     for (final String key in candidates) {
       try {
-        final DataSnapshot snapshot = await _fieldRef(
-          key,
-        ).child('current').get();
-        if (snapshot.exists) {
+        if (await _hasNodeData(userKey: key, nodeName: nodeName)) {
           return key;
         }
       } catch (error) {
@@ -117,21 +179,42 @@ class SensorDatabaseService {
       }
     }
 
-    return SensorDbConstants.defaultUserKey;
+    _logger.warning(
+      'No existing $nodeName node matched the authenticated user; '
+      'watching ${candidates.first}',
+    );
+    return candidates.first;
   }
 
-  /// Live stream of the global pump control flag.
-  Stream<bool> watchPumpStatus() {
-    return _pumpRef.onValue.map(
-      (DatabaseEvent event) => event.snapshot.value == true,
+  Future<bool> _hasNodeData({
+    required String userKey,
+    required String nodeName,
+  }) async {
+    Query query = _fieldRef(userKey).child(nodeName);
+    if (nodeName == SensorDbConstants.historyNode) {
+      query = query.limitToLast(1);
+    }
+    final DataSnapshot snapshot = await query.get();
+    return snapshot.exists && snapshot.value != null;
+  }
+
+  /// Live stream of the authenticated user's pump control flag.
+  @override
+  Stream<bool> watchPumpStatus({required String userUid}) {
+    return _pumpRef(userUid).onValue.map(
+      (DatabaseEvent event) => _toOptionalBool(event.snapshot.value) ?? false,
     );
   }
 
-  /// Writes the pump control flag the ESP32 polls.
-  Future<void> setPumpStatus(bool isOn) async {
+  /// Writes the authenticated user's pump control flag.
+  @override
+  Future<void> setPumpStatus({
+    required String userUid,
+    required bool isOn,
+  }) async {
     try {
-      await _pumpRef.set(isOn);
-      _logger.info('Pump status set to $isOn');
+      await _pumpRef(userUid).set(isOn);
+      _logger.info('Pump status for user $userUid set to $isOn');
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to write pump status',
@@ -150,6 +233,7 @@ class SensorDatabaseService {
   /// an empty local cache, or a rules denial) — an unindexed `orderByChild`
   /// query would silently download the whole node instead of throwing, so
   /// that approach is intentionally avoided here.
+  @override
   Future<List<SensorSample>> getHistoryFrom(
     DateTime start, {
     required String userKey,
@@ -158,23 +242,27 @@ class SensorDatabaseService {
     DataSnapshot snapshot;
 
     try {
-      snapshot = await _fieldRef(
-        userKey,
-      ).child('history').orderByKey().startAt(startMs.toString()).get();
+      snapshot = await _fieldRef(userKey)
+          .child(SensorDbConstants.historyNode)
+          .orderByKey()
+          .startAt(startMs.toString())
+          .get();
     } catch (error) {
       _logger.warning(
         'Range query on history failed, falling back to full read',
         data: error,
       );
       try {
-        snapshot = await _fieldRef(userKey).child('history').get();
+        snapshot = await _fieldRef(
+          userKey,
+        ).child(SensorDbConstants.historyNode).get();
       } catch (fallbackError, fallbackStackTrace) {
-        _logger.error(
-          'Failed to read sensor history',
-          error: fallbackError,
-          stackTrace: fallbackStackTrace,
+        _logger.warning('Failed to read sensor history', data: fallbackError);
+        _logger.debug(
+          'Sensor history read stack trace',
+          data: fallbackStackTrace,
         );
-        rethrow;
+        return const [];
       }
     }
 
@@ -191,6 +279,7 @@ class SensorDatabaseService {
   }
 
   /// Streams history samples at or after [start], sorted by timestamp.
+  @override
   Stream<List<SensorSample>> watchHistoryFrom(
     DateTime start, {
     required String userKey,
@@ -198,7 +287,7 @@ class SensorDatabaseService {
     final int startMs = start.millisecondsSinceEpoch;
 
     return _fieldRef(userKey)
-        .child('history')
+        .child(SensorDbConstants.historyNode)
         .orderByKey()
         .startAt(startMs.toString())
         .onValue
@@ -223,13 +312,58 @@ class SensorDatabaseService {
       return null;
     }
 
+    final double? soilMoisture = _firstDouble(raw, const [
+      'soilMoisturePercent',
+      'soilMoisture',
+      'soil_moisture',
+      'SoilMoisture',
+      'moisturePercent',
+      'moisture',
+      'Moisture',
+    ]);
+    final double? temperature = _firstDouble(raw, const [
+      'temperatureC',
+      'temperature',
+      'Temperature',
+      'tempC',
+      'temp',
+      'Temp',
+    ]);
+    final double? humidity = _firstDouble(raw, const [
+      'humidityPercent',
+      'humidity',
+      'Humidity',
+      'humidity_percent',
+    ]);
+    final double? light = _firstDouble(raw, const [
+      'lightLux',
+      'lightIntensity',
+      'LightIntensity',
+      'light_intensity',
+      'lux',
+      'Lux',
+      'light',
+      'Light',
+    ]);
+
     return FieldCurrentReading(
-      deviceOnline: raw['deviceOnline'] == true,
-      soilMoisturePercent: _toDouble(raw['soilMoisturePercent']),
-      temperatureC: _toDouble(raw['temperatureC']),
-      humidityPercent: _toDouble(raw['humidityPercent']),
-      lightLux: _toDouble(raw['lightLux']),
-      updatedAt: _toDateTime(raw['updatedAt']),
+      deviceOnline: _firstBool(raw, const [
+        'deviceOnline',
+        'online',
+        'isOnline',
+      ]),
+      soilMoisturePercent: soilMoisture,
+      temperatureC: temperature,
+      humidityPercent: humidity,
+      lightLux: light,
+      updatedAt: _firstDateTime(raw, const [
+        'updatedAt',
+        'timestamp',
+        'Timestamp',
+        'time',
+        'Time',
+        'ts',
+      ]),
     );
   }
 
@@ -262,26 +396,136 @@ class SensorDatabaseService {
     }
 
     final DateTime? timestamp =
-        _toDateTime(value['timestamp']) ?? _toDateTime(num.tryParse('$key'));
+        _firstDateTime(value, const [
+          'timestamp',
+          'updatedAt',
+          'Timestamp',
+          'time',
+          'Time',
+          'ts',
+        ]) ??
+        _toDateTime(num.tryParse('$key'));
     if (timestamp == null) {
       return null;
     }
 
     return SensorSample(
       timestamp: timestamp,
-      soilMoisturePercent: _toDouble(value['soilMoisturePercent']),
-      temperatureC: _toDouble(value['temperatureC']),
-      humidityPercent: _toDouble(value['humidityPercent']),
-      lightLux: _toDouble(value['lightLux']),
+      soilMoisturePercent: _firstDouble(value, const [
+        'soilMoisturePercent',
+        'soilMoisture',
+        'soil_moisture',
+        'SoilMoisture',
+        'moisturePercent',
+        'moisture',
+        'Moisture',
+      ]),
+      temperatureC: _firstDouble(value, const [
+        'temperatureC',
+        'temperature',
+        'Temperature',
+        'tempC',
+        'temp',
+        'Temp',
+      ]),
+      humidityPercent: _firstDouble(value, const [
+        'humidityPercent',
+        'humidity',
+        'Humidity',
+        'humidity_percent',
+      ]),
+      lightLux: _firstDouble(value, const [
+        'lightLux',
+        'lightIntensity',
+        'LightIntensity',
+        'light_intensity',
+        'lux',
+        'Lux',
+        'light',
+        'Light',
+      ]),
     );
   }
 
-  static double? _toDouble(Object? value) =>
-      value is num ? value.toDouble() : null;
+  static double? _toDouble(Object? value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value is String) {
+      return double.tryParse(value.trim());
+    }
+    return null;
+  }
+
+  static double? _firstDouble(Map raw, List<String> keys) {
+    for (final String key in keys) {
+      final double? value = _toDouble(raw[key]);
+      if (value != null) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  static bool _firstBool(Map raw, List<String> keys) {
+    for (final String key in keys) {
+      final bool? value = _toOptionalBool(raw[key]);
+      if (value != null) {
+        return value;
+      }
+    }
+    return false;
+  }
+
+  static bool? _toOptionalBool(Object? value) {
+    if (value is bool) {
+      return value;
+    }
+    if (value is num) {
+      return value != 0;
+    }
+    if (value is String) {
+      final String normalized = value.trim().toLowerCase();
+      if (normalized == 'true' ||
+          normalized == '1' ||
+          normalized == 'on' ||
+          normalized == 'online') {
+        return true;
+      }
+      if (normalized == 'false' ||
+          normalized == '0' ||
+          normalized == 'off' ||
+          normalized == 'offline') {
+        return false;
+      }
+    }
+    return null;
+  }
+
+  static DateTime? _firstDateTime(Map raw, List<String> keys) {
+    for (final String key in keys) {
+      final DateTime? value = _toDateTime(raw[key]);
+      if (value != null) {
+        return value;
+      }
+    }
+    return null;
+  }
 
   static DateTime? _toDateTime(Object? value) {
     if (value is num && value > 0) {
-      return DateTime.fromMillisecondsSinceEpoch(value.toInt());
+      return DateTime.fromMillisecondsSinceEpoch(
+        SensorDbConstants.normalizeEpochMilliseconds(value),
+      );
+    }
+    if (value is String) {
+      final num? numeric = num.tryParse(value.trim());
+      if (numeric != null && numeric > 0) {
+        return DateTime.fromMillisecondsSinceEpoch(
+          SensorDbConstants.normalizeEpochMilliseconds(numeric),
+        );
+      }
+      return DateTime.tryParse(value);
     }
     return null;
   }

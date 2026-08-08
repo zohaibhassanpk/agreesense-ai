@@ -24,13 +24,6 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
           averagesTitle: 'Averages (Day)',
           metricSeries: _buildDaySeries(),
           averages: _buildAverages(),
-          lightIntensitySeries: _buildDayLightSeries(),
-          lightIntensityStats: _buildLightStats(
-            average: '52,100 lux',
-            minimum: '18,200 lux',
-            maximum: '83,400 lux',
-            latest: '58,700 lux',
-          ),
         ),
         AnalyticsPeriodDataModel(
           range: AnalyticsTimeRange.week,
@@ -39,13 +32,6 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
           averagesTitle: 'Averages (Week)',
           metricSeries: _buildWeekSeries(),
           averages: _buildAverages(),
-          lightIntensitySeries: _buildWeekLightSeries(),
-          lightIntensityStats: _buildLightStats(
-            average: '49,800 lux',
-            minimum: '15,600 lux',
-            maximum: '87,200 lux',
-            latest: '58,700 lux',
-          ),
         ),
         AnalyticsPeriodDataModel(
           range: AnalyticsTimeRange.month,
@@ -54,13 +40,6 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
           averagesTitle: 'Averages (Month)',
           metricSeries: _buildMonthSeries(),
           averages: _buildAverages(),
-          lightIntensitySeries: _buildMonthLightSeries(),
-          lightIntensityStats: _buildLightStats(
-            average: '48,400 lux',
-            minimum: '12,900 lux',
-            maximum: '91,100 lux',
-            latest: '58,700 lux',
-          ),
         ),
       ],
     );
@@ -81,16 +60,22 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
         colorKey: 'red',
       ),
       AnalyticsMetricAverageModel(
-        label: 'Soil pH',
-        value: '6.8 (Optimal)',
-        icon: AppAssets.jar,
+        label: 'Humidity',
+        value: '68%',
+        icon: AppAssets.cloud,
         colorKey: 'green',
+      ),
+      AnalyticsMetricAverageModel(
+        label: 'Light Intensity',
+        value: '52,100 lux',
+        icon: AppAssets.sun,
+        colorKey: 'yellow',
       ),
     ];
   }
 
   List<AnalyticsMetricSeriesModel> _buildDaySeries() {
-    return const [
+    return [
       AnalyticsMetricSeriesModel(
         label: 'Moisture',
         icon: AppAssets.drop,
@@ -122,8 +107,8 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
         ],
       ),
       AnalyticsMetricSeriesModel(
-        label: 'Soil pH',
-        icon: AppAssets.jar,
+        label: 'Humidity',
+        icon: AppAssets.cloud,
         colorKey: 'green',
         points: [
           AnalyticsChartPointModel(x: 0.00, y: 0.86),
@@ -136,11 +121,12 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
           AnalyticsChartPointModel(x: 1.00, y: 0.73),
         ],
       ),
+      _buildDayLightSeries(),
     ];
   }
 
   List<AnalyticsMetricSeriesModel> _buildWeekSeries() {
-    return const [
+    return [
       AnalyticsMetricSeriesModel(
         label: 'Moisture',
         icon: AppAssets.drop,
@@ -170,8 +156,8 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
         ],
       ),
       AnalyticsMetricSeriesModel(
-        label: 'Soil pH',
-        icon: AppAssets.jar,
+        label: 'Humidity',
+        icon: AppAssets.cloud,
         colorKey: 'green',
         points: [
           AnalyticsChartPointModel(x: 0.00, y: 0.86),
@@ -183,11 +169,12 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
           AnalyticsChartPointModel(x: 1.00, y: 0.73),
         ],
       ),
+      _buildWeekLightSeries(),
     ];
   }
 
   List<AnalyticsMetricSeriesModel> _buildMonthSeries() {
-    return const [
+    return [
       AnalyticsMetricSeriesModel(
         label: 'Moisture',
         icon: AppAssets.drop,
@@ -211,8 +198,8 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
         ],
       ),
       AnalyticsMetricSeriesModel(
-        label: 'Soil pH',
-        icon: AppAssets.jar,
+        label: 'Humidity',
+        icon: AppAssets.cloud,
         colorKey: 'green',
         points: [
           AnalyticsChartPointModel(x: 0.00, y: 0.86),
@@ -221,12 +208,13 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
           AnalyticsChartPointModel(x: 1.00, y: 0.73),
         ],
       ),
+      _buildMonthLightSeries(),
     ];
   }
 
   AnalyticsMetricSeriesModel _buildDayLightSeries() {
     return const AnalyticsMetricSeriesModel(
-      label: 'Light Intensity',
+      label: 'Light',
       icon: AppAssets.sun,
       colorKey: 'yellow',
       points: [
@@ -243,7 +231,7 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
 
   AnalyticsMetricSeriesModel _buildWeekLightSeries() {
     return const AnalyticsMetricSeriesModel(
-      label: 'Light Intensity',
+      label: 'Light',
       icon: AppAssets.sun,
       colorKey: 'yellow',
       points: [
@@ -260,7 +248,7 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
 
   AnalyticsMetricSeriesModel _buildMonthLightSeries() {
     return const AnalyticsMetricSeriesModel(
-      label: 'Light Intensity',
+      label: 'Light',
       icon: AppAssets.sun,
       colorKey: 'yellow',
       points: [
@@ -270,39 +258,5 @@ class AnalyticsLocalDataSourceImpl implements AnalyticsLocalDataSource {
         AnalyticsChartPointModel(x: 1.00, y: 0.44),
       ],
     );
-  }
-
-  List<AnalyticsMetricAverageModel> _buildLightStats({
-    required String average,
-    required String minimum,
-    required String maximum,
-    required String latest,
-  }) {
-    return [
-      AnalyticsMetricAverageModel(
-        label: 'Average',
-        value: average,
-        icon: AppAssets.sun,
-        colorKey: 'yellow',
-      ),
-      AnalyticsMetricAverageModel(
-        label: 'Minimum',
-        value: minimum,
-        icon: AppAssets.sun,
-        colorKey: 'yellow',
-      ),
-      AnalyticsMetricAverageModel(
-        label: 'Maximum',
-        value: maximum,
-        icon: AppAssets.sun,
-        colorKey: 'yellow',
-      ),
-      AnalyticsMetricAverageModel(
-        label: 'Latest Reading',
-        value: latest,
-        icon: AppAssets.sun,
-        colorKey: 'yellow',
-      ),
-    ];
   }
 }

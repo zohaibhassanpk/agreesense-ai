@@ -71,7 +71,6 @@ void main() {
       AlertItem(
         title: 'Critical: High Temperature',
         message: 'Temperature crossed its critical threshold.',
-        timeLabel: 'just now',
         timestamp: DateTime.now(),
         severity: AlertSeverity.critical,
         icon: 'assets/svgs/temprature.svg',
@@ -80,10 +79,94 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(provider.sections.first.items.first.title, contains('Temperature'));
-    expect(provider.filters[1].label, 'Critical (2)');
+    expect(provider.filters.map((filter) => filter.label), <String>[
+      'All (1)',
+      'Warning (0)',
+      'Critical (1)',
+    ]);
 
     provider.dispose();
   });
+
+  test('expired alerts are excluded from alert badge counts', () async {
+    final DateTime now = DateTime.now();
+    final AlertsStore store = AlertsStore();
+    final AlertsLocalDataSource local = AlertsLocalDataSourceImpl();
+    final AlertsProvider provider = AlertsProvider(
+      repository: AlertsRepositoryImpl(
+        localDataSource: local,
+        liveDataSource: AlertsLiveDataSourceImpl(
+          alertsStore: store,
+          localDataSource: local,
+        ),
+      ),
+    );
+
+    store
+      ..addAlert(
+        AlertItem(
+          title: 'Expired warning',
+          message: 'Expired',
+          timestamp: now.subtract(const Duration(hours: 9)),
+          createdAt: now.subtract(const Duration(hours: 9)),
+          severity: AlertSeverity.warning,
+          icon: 'assets/svgs/drop.svg',
+        ),
+      )
+      ..addAlert(
+        AlertItem(
+          title: 'Current warning',
+          message: 'Current',
+          timestamp: now,
+          createdAt: now,
+          severity: AlertSeverity.warning,
+          icon: 'assets/svgs/drop.svg',
+        ),
+      );
+
+    await provider.loadAlerts();
+    expect(provider.filters.first.label, 'All (1)');
+    expect(provider.filters[1].label, 'Warning (1)');
+
+    provider.dispose();
+  });
+
+  test(
+    'alerts provider refreshes relative-time labels automatically',
+    () async {
+      final AlertsStore store = AlertsStore();
+      store.addAlert(
+        AlertItem(
+          title: 'Warning: High Temperature',
+          message: 'Temperature crossed its warning threshold.',
+          timestamp: DateTime.now(),
+          severity: AlertSeverity.warning,
+          icon: 'assets/svgs/temprature.svg',
+        ),
+      );
+      final AlertsLocalDataSource local = AlertsLocalDataSourceImpl();
+      final AlertsProvider provider = AlertsProvider(
+        repository: AlertsRepositoryImpl(
+          localDataSource: local,
+          liveDataSource: AlertsLiveDataSourceImpl(
+            alertsStore: store,
+            localDataSource: local,
+          ),
+        ),
+        relativeTimeRefreshInterval: const Duration(milliseconds: 1),
+      );
+      await provider.loadAlerts();
+      final Completer<void> refreshed = Completer<void>();
+      provider.addListener(() {
+        if (!refreshed.isCompleted) {
+          refreshed.complete();
+        }
+      });
+
+      await refreshed.future.timeout(const Duration(seconds: 1));
+      provider.dispose();
+    },
+  );
 
   test(
     'disposing completes an in-flight first load without notifying',

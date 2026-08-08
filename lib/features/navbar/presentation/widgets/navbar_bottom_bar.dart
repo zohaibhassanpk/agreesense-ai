@@ -34,11 +34,6 @@ class NavbarBottomBar extends StatelessWidget {
       selectedIcon: AppAssets.analyticsSelected,
     ),
     NavbarItem(
-      label: 'Devices',
-      icon: AppAssets.device,
-      selectedIcon: AppAssets.deviceSelected,
-    ),
-    NavbarItem(
       label: 'Settings',
       icon: AppAssets.setting,
       selectedIcon: AppAssets.settingSelected,

@@ -1,0 +1,19 @@
+{
+  "name": "agrisenseai-functions",
+  "description": "Server-side sensor alert evaluation and FCM delivery",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check index.js && node --check alert_logic.js",
+    "lint": "npm run check",
+    "build": "npm run check"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.6.0",
+    "firebase-functions": "^7.0.0"
+  }
+}

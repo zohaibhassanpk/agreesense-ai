@@ -8,10 +8,12 @@ class ProfileProvider extends ChangeNotifier {
   ProfileProvider({
     required this.repository,
     required this.signOut,
+    this.beforeSignOut,
   });
 
   final ProfileRepository repository;
   final SignOut signOut;
+  final Future<void> Function()? beforeSignOut;
 
   ProfileDashboard? _profile;
   bool _isLoading = false;
@@ -41,6 +43,7 @@ class ProfileProvider extends ChangeNotifier {
     _setError(null);
 
     try {
+      await beforeSignOut?.call();
       await signOut();
     } catch (_) {
       _setError('Unable to log out.');

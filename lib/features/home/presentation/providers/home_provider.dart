@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../../../core/services/logger/logger_service.dart';
 import '../../domain/entities/home_dashboard.dart';
@@ -17,13 +17,19 @@ class HomeProvider extends ChangeNotifier {
   static const Duration _firstLoadTimeout = Duration(seconds: 20);
 
   HomeDashboard? _dashboard;
+  HomeDashboard? _firebaseDashboard;
   bool _isLoading = false;
+  bool _isPumpUpdating = false;
+  bool? _pendingPumpStatus;
+  int _pumpOperation = 0;
   String? _errorMessage;
   StreamSubscription<HomeDashboard>? _subscription;
   bool _disposed = false;
 
   HomeDashboard? get dashboard => _dashboard;
   bool get isLoading => _isLoading;
+  bool get isPumpUpdating => _isPumpUpdating;
+  bool get canControlPump => _dashboard?.deviceOnline ?? false;
   String? get errorMessage => _errorMessage;
 
   Future<void> loadDashboard() async {
@@ -36,7 +42,11 @@ class HomeProvider extends ChangeNotifier {
 
     _subscription = repository.watchDashboard().listen(
       (HomeDashboard value) {
-        _dashboard = value;
+        _firebaseDashboard = value;
+        final bool? pendingPumpStatus = _pendingPumpStatus;
+        _dashboard = pendingPumpStatus == null
+            ? value
+            : value.withPumpStatus(pendingPumpStatus);
         _errorMessage = null;
         _isLoading = false;
         notifyListeners();
@@ -76,8 +86,23 @@ class HomeProvider extends ChangeNotifier {
   }
 
   Future<bool> setPumpStatus(bool isOn) async {
+    if (!canControlPump) {
+      return false;
+    }
+    final int operation = ++_pumpOperation;
+    _pendingPumpStatus = isOn;
+    _isPumpUpdating = true;
+    _dashboard = _dashboard?.withPumpStatus(isOn);
+    notifyListeners();
+
     try {
       await repository.setPumpStatus(isOn);
+      if (!_disposed && operation == _pumpOperation) {
+        _pendingPumpStatus = null;
+        _isPumpUpdating = false;
+        _dashboard = (_firebaseDashboard ?? _dashboard)?.withPumpStatus(isOn);
+        notifyListeners();
+      }
       return true;
     } catch (error, stackTrace) {
       _logger.error(
@@ -85,6 +110,12 @@ class HomeProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
+      if (!_disposed && operation == _pumpOperation) {
+        _pendingPumpStatus = null;
+        _isPumpUpdating = false;
+        _dashboard = _firebaseDashboard;
+        notifyListeners();
+      }
       return false;
     }
   }

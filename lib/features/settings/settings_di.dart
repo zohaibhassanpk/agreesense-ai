@@ -8,7 +8,7 @@ import 'presentation/providers/settings_provider.dart';
 class SettingsDI {
   void init(GetIt di) {
     di.registerLazySingleton<SettingsLocalDataSource>(
-      () => SettingsLocalDataSourceImpl(),
+      () => SettingsLocalDataSourceImpl(localStorageService: di()),
     );
 
     di.registerLazySingleton<SettingsRepository>(
@@ -16,7 +16,13 @@ class SettingsDI {
     );
 
     di.registerFactory<SettingsProvider>(
-      () => SettingsProvider(repository: di(), thresholdSettings: di()),
+      () => SettingsProvider(
+        repository: di(),
+        thresholdSettings: di(),
+        localStorageService: di(),
+        alertsStore: di(),
+        notificationPushService: di(),
+      ),
     );
   }
 }

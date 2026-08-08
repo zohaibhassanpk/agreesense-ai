@@ -11,7 +11,7 @@ import 'package:agrisenseaiapp/features/splash_onboarding/presentation/screens/s
 
 class AppRouter {
   AppRouter({required AuthSessionProvider authSessionProvider})
-      : _authSessionProvider = authSessionProvider;
+    : _authSessionProvider = authSessionProvider;
 
   final AuthSessionProvider _authSessionProvider;
 
@@ -30,8 +30,7 @@ class AppRouter {
       }
       final isAuthenticated = _authSessionProvider.isAuthenticated;
       final isAuthFlow = location == RouteNames.auth;
-      final isPublic =
-          location == RouteNames.onboarding;
+      final isPublic = location == RouteNames.onboarding;
 
       if (!isAuthenticated && !(isAuthFlow || isPublic)) {
         return RouteNames.auth;

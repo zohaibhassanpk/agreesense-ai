@@ -25,8 +25,7 @@ class NetworkService {
     final initial = await _connectivity.checkConnectivity();
     yield initial.isEmpty || initial.contains(ConnectivityResult.none);
     yield* _connectivity.onConnectivityChanged.map(
-      (results) =>
-          results.isEmpty || results.contains(ConnectivityResult.none),
+      (results) => results.isEmpty || results.contains(ConnectivityResult.none),
     );
   }
 }

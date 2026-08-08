@@ -31,14 +31,20 @@ void main() {
       );
 
       await provider.loadSettings();
-      await provider.updateMinMoisture(65);
-      await provider.updateMaxTemperature(31);
-      await provider.updateMaxHumidity(80);
+      await provider.updateTemperatureRange(18, 31);
+      await provider.updateHumidityRange(55, 80);
+      await provider.updateMoistureRange(65, 87);
+      await provider.updateLightRange(40000, 75000);
       provider.togglePushNotifications(false);
 
-      expect(provider.minMoisture, 65);
+      expect(provider.minTemperature, 18);
       expect(provider.maxTemperature, 31);
+      expect(provider.minHumidity, 55);
       expect(provider.maxHumidity, 80);
+      expect(provider.minMoisture, 65);
+      expect(provider.maxMoisture, 87);
+      expect(provider.minLight, 40000);
+      expect(provider.maxLight, 75000);
       expect(provider.pushNotificationsEnabled, isFalse);
     });
 

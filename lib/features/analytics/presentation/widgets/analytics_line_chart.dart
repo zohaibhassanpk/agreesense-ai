@@ -13,38 +13,56 @@ class AnalyticsLineChart extends StatelessWidget {
     super.key,
     required this.series,
     required this.axisLabels,
+    required this.yAxisLabels,
+    required this.lightYAxisLabels,
   });
 
   final List<AnalyticsMetricSeries> series;
   final List<String> axisLabels;
+  final List<String> yAxisLabels;
+  final List<String> lightYAxisLabels;
 
   @override
   Widget build(BuildContext context) {
+    final TextStyle axisStyle =
+        (context.textTheme.bodySmall ?? AppTextStyles.bodySmall).copyWith(
+          color: AppColors.textTertiary,
+          fontWeight: FontWeight.w500,
+          fontSize: 9.sp,
+        );
+
     return Column(
       children: [
         SizedBox(
           height: 160.h,
           width: double.infinity,
-          child: CustomPaint(
-            painter: _AnalyticsLineChartPainter(series: series),
-            child: const SizedBox.expand(),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: 32.w,
+                child: _YAxisLabels(labels: yAxisLabels, style: axisStyle),
+              ),
+              Expanded(
+                child: CustomPaint(
+                  painter: _AnalyticsLineChartPainter(
+                    series: series,
+                    gridIntervalCount: yAxisLabels.length - 1,
+                  ),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+              SizedBox(width: 44.w),
+            ],
           ),
         ),
         SizedBox(height: 12.h),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 2.w),
+          padding: EdgeInsets.only(left: 34.w, right: 46.w),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: axisLabels.map((String label) {
-              return Text(
-                label,
-                style: (context.textTheme.bodySmall ?? AppTextStyles.bodySmall)
-                    .copyWith(
-                      color: AppColors.textTertiary,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 10.sp,
-                    ),
-              );
+              return Text(label, style: axisStyle.copyWith(fontSize: 8.sp));
             }).toList(),
           ),
         ),
@@ -53,10 +71,42 @@ class AnalyticsLineChart extends StatelessWidget {
   }
 }
 
+class _YAxisLabels extends StatelessWidget {
+  const _YAxisLabels({required this.labels, required this.style});
+
+  final List<String> labels;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 1.h),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: labels
+            .map(
+              (String label) => Text(
+                label,
+                style: style,
+                maxLines: 1,
+                overflow: TextOverflow.visible,
+              ),
+            )
+            .toList(growable: false),
+      ),
+    );
+  }
+}
+
 class _AnalyticsLineChartPainter extends CustomPainter {
-  _AnalyticsLineChartPainter({required this.series});
+  _AnalyticsLineChartPainter({
+    required this.series,
+    required this.gridIntervalCount,
+  });
 
   final List<AnalyticsMetricSeries> series;
+  final int gridIntervalCount;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -68,14 +118,15 @@ class _AnalyticsLineChartPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     final Rect chartRect = Rect.fromLTWH(
-      12.w,
+      1.w,
       4.h,
-      size.width - 12.w,
+      size.width - 2.w,
       size.height - 8.h,
     );
 
-    for (int index = 0; index < 3; index++) {
-      final double dy = chartRect.top + (chartRect.height / 3) * index;
+    for (int index = 0; index < gridIntervalCount; index++) {
+      final double dy =
+          chartRect.top + (chartRect.height / gridIntervalCount) * index;
       _drawDashedLine(
         canvas,
         Offset(chartRect.left, dy),
@@ -116,9 +167,18 @@ class _AnalyticsLineChartPainter extends CustomPainter {
       final Path path = _createSmoothPath(item.points, chartRect);
       canvas.drawPath(path, linePaint);
 
-      final Offset lastPoint = _toOffset(item.points.last, chartRect);
-      canvas.drawCircle(lastPoint, 4.5, pointPaint);
-      canvas.drawCircle(lastPoint, 4.5, pointBorderPaint);
+      for (int index = 0; index < item.points.length; index++) {
+        final bool isSegmentStart = item.points[index].breakBefore;
+        final bool isSegmentEnd =
+            index == item.points.length - 1 ||
+            item.points[index + 1].breakBefore;
+        if (!isSegmentStart && !isSegmentEnd) {
+          continue;
+        }
+        final Offset point = _toOffset(item.points[index], chartRect);
+        canvas.drawCircle(point, 4.5, pointPaint);
+        canvas.drawCircle(point, 4.5, pointBorderPaint);
+      }
     }
   }
 
@@ -137,6 +197,10 @@ class _AnalyticsLineChartPainter extends CustomPainter {
     for (int index = 0; index < offsets.length - 1; index++) {
       final Offset current = offsets[index];
       final Offset next = offsets[index + 1];
+      if (points[index + 1].breakBefore) {
+        path.moveTo(next.dx, next.dy);
+        continue;
+      }
       final double controlX = (current.dx + next.dx) / 2;
 
       path.cubicTo(controlX, current.dy, controlX, next.dy, next.dx, next.dy);
@@ -173,7 +237,8 @@ class _AnalyticsLineChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _AnalyticsLineChartPainter oldDelegate) {
-    return oldDelegate.series != series;
+    return oldDelegate.series != series ||
+        oldDelegate.gridIntervalCount != gridIntervalCount;
   }
 }
 

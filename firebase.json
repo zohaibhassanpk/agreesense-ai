@@ -1,1 +1,35 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"agrisenseai-app","appId":"1:980497778455:android:c2fb86d99463f480c45952","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"agrisenseai-app","configurations":{"android":"1:980497778455:android:c2fb86d99463f480c45952","ios":"1:980497778455:ios:b0d4923f58684379c45952"}}}}}}
+{
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log"
+    ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "agrisenseai-app",
+          "appId": "1:980497778455:android:c2fb86d99463f480c45952",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "agrisenseai-app",
+          "configurations": {
+            "android": "1:980497778455:android:c2fb86d99463f480c45952",
+            "ios": "1:980497778455:ios:b0d4923f58684379c45952"
+          }
+        }
+      }
+    }
+  }
+}

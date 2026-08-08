@@ -1,39 +1,58 @@
 /// Returns a short human-readable relative time for [dateTime], relative to
 /// [now] (defaults to `DateTime.now()`).
 ///
-/// Examples:
-///   just now        → < 1 minute
-///   5 min ago       → < 1 hour
-///   3 hours ago     → < 1 day
-///   1 day ago       → < 2 days
-///   3 days ago      → < 7 days
-///   Apr 15          → older than a week, same year
-///   Apr 15, 2024    → older than a week, different year
+/// Examples: `Just now`, `5 minutes ago`, `1 hour ago`, and `Yesterday`.
 String relativeTime(DateTime dateTime, {DateTime? now}) {
-  final current = now ?? DateTime.now();
-  final diff = current.difference(dateTime);
+  final DateTime current = now ?? DateTime.now();
+  final Duration rawDifference = current.difference(dateTime);
+  final Duration difference = rawDifference.isNegative
+      ? Duration.zero
+      : rawDifference;
 
-  if (diff.inSeconds < 60) return 'just now';
-  if (diff.inMinutes < 60) {
-    final m = diff.inMinutes;
-    return m == 1 ? '1 min ago' : '$m min ago';
+  if (difference.inSeconds < 60) return 'Just now';
+  if (difference.inMinutes < 60) {
+    final int minutes = difference.inMinutes;
+    return minutes == 1 ? '1 minute ago' : '$minutes minutes ago';
   }
-  if (diff.inHours < 24) {
-    final h = diff.inHours;
-    return h == 1 ? '1 hour ago' : '$h hours ago';
+  if (_isYesterday(dateTime, current)) {
+    return 'Yesterday';
   }
-  if (diff.inDays < 7) {
-    final d = diff.inDays;
-    return d == 1 ? '1 day ago' : '$d days ago';
+  if (difference.inHours < 24) {
+    final int hours = difference.inHours;
+    return hours == 1 ? '1 hour ago' : '$hours hours ago';
+  }
+  if (difference.inDays < 7) {
+    final int days = difference.inDays;
+    return days == 1 ? 'Yesterday' : '$days days ago';
   }
 
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final monthLabel = months[dateTime.month - 1];
   if (dateTime.year == current.year) {
     return '$monthLabel ${dateTime.day}';
   }
   return '$monthLabel ${dateTime.day}, ${dateTime.year}';
+}
+
+bool _isYesterday(DateTime dateTime, DateTime current) {
+  final DateTime today = DateTime(current.year, current.month, current.day);
+  final DateTime alertDate = DateTime(
+    dateTime.year,
+    dateTime.month,
+    dateTime.day,
+  );
+  return alertDate == today.subtract(const Duration(days: 1));
 }

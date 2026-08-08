@@ -64,7 +64,7 @@ class _AuthLoginScreenContentState extends State<_AuthLoginScreenContent> {
     final double introGap = AppSpacing.x2l + AppSpacing.sm;
 
     final TextStyle titleStyle =
-      context.textTheme.headlineLarge ?? AppTextStyles.headingLarge;
+        context.textTheme.headlineLarge ?? AppTextStyles.headingLarge;
     final TextStyle bodyStyle =
         context.textTheme.bodyMedium ?? const TextStyle();
 
@@ -100,9 +100,9 @@ class _AuthLoginScreenContentState extends State<_AuthLoginScreenContent> {
                           onPressed: provider.isLoading
                               ? null
                               : () async {
-                                  final success =
-                                      await provider.signInWithGoogle();
-                                    if (!context.mounted) return;
+                                  final success = await provider
+                                      .signInWithGoogle();
+                                  if (!context.mounted) return;
 
                                   if (success) {
                                     context.go(RouteNames.navbar);

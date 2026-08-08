@@ -5,9 +5,8 @@ import '../../domain/usecases/sign_in_with_google.dart';
 
 /// Provider for auth login screen state.
 class AuthLoginProvider extends ChangeNotifier {
-  AuthLoginProvider({
-    required SignInWithGoogle signInWithGoogle,
-  }) : _signInWithGoogle = signInWithGoogle;
+  AuthLoginProvider({required SignInWithGoogle signInWithGoogle})
+    : _signInWithGoogle = signInWithGoogle;
 
   final SignInWithGoogle _signInWithGoogle;
   final LoggerService _logger = LoggerService(className: 'AuthLoginProvider');
@@ -16,7 +15,6 @@ class AuthLoginProvider extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-
 
   Future<bool> signInWithGoogle() async {
     _setLoading(true);
@@ -48,5 +46,4 @@ class AuthLoginProvider extends ChangeNotifier {
     _errorMessage = message;
     notifyListeners();
   }
-
 }

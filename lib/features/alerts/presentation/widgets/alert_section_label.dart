@@ -14,9 +14,9 @@ class AlertSectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle style =
         (context.textTheme.labelSmall ?? AppTextStyles.labelSmall).copyWith(
-      color: AppColors.textTertiary,
-      letterSpacing: 1.2.r,
-    );
+          color: AppColors.textTertiary,
+          letterSpacing: 1.2.r,
+        );
 
     return Text(label.toUpperCase(), style: style);
   }

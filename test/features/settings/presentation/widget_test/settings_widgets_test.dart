@@ -33,21 +33,35 @@ void main() {
     await tester.pumpWidget(
       buildResponsiveTestApp(
         SettingsThresholdCard(
-          minMoisture: 60,
-          maxTemperature: 30,
-          maxHumidity: 75,
-          onMinMoistureChanged: (_) {},
-          onMinMoistureChangeEnd: (_) {},
-          onMaxTemperatureChanged: (_) {},
-          onMaxTemperatureChangeEnd: (_) {},
-          onMaxHumidityChanged: (_) {},
-          onMaxHumidityChangeEnd: (_) {},
+          temperatureRange: const RangeValues(20, 30),
+          humidityRange: const RangeValues(60, 75),
+          moistureRange: const RangeValues(60, 85),
+          lightRange: const RangeValues(45000, 70000),
+          onTemperatureChanged: (_) {},
+          onTemperatureChangeEnd: (_) {},
+          onHumidityChanged: (_) {},
+          onHumidityChangeEnd: (_) {},
+          onMoistureChanged: (_) {},
+          onMoistureChangeEnd: (_) {},
+          onLightChanged: (_) {},
+          onLightChangeEnd: (_) {},
         ),
       ),
     );
 
-    expect(find.text('Min. Moisture Level'), findsOneWidget);
-    expect(find.text('Max. Temperature'), findsOneWidget);
-    expect(find.text('Max. Humidity'), findsOneWidget);
+    expect(find.text('Temperature'), findsOneWidget);
+    expect(find.text('Humidity'), findsOneWidget);
+    expect(find.text('Soil Moisture'), findsOneWidget);
+    expect(find.text('Light Intensity'), findsOneWidget);
+    expect(find.text('Minimum Threshold'), findsNWidgets(4));
+    expect(find.text('Maximum Threshold'), findsNWidgets(4));
+    expect(find.byType(RangeSlider), findsNWidgets(4));
+    final List<RangeSlider> sliders = tester
+        .widgetList<RangeSlider>(find.byType(RangeSlider))
+        .toList(growable: false);
+    expect((sliders[0].min, sliders[0].max), (0, 50));
+    expect((sliders[1].min, sliders[1].max), (0, 100));
+    expect((sliders[2].min, sliders[2].max), (0, 100));
+    expect((sliders[3].min, sliders[3].max), (0, 100000));
   });
 }

@@ -10,7 +10,7 @@ class HomeDashboardModel extends HomeDashboard {
     required SmartActionModel super.smartAction,
     required super.updatedLabel,
     required List<SensorReadingModel> super.sensors,
-    super.deviceOnline,
+    super.deviceStatus,
     super.updatedAt,
     super.pumpOn,
   });

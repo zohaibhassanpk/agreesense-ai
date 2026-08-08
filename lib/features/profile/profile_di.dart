@@ -6,6 +6,7 @@ import 'data/repositories/profile_repository_impl.dart';
 import 'domain/repositories/profile_repository.dart';
 import 'presentation/providers/profile_provider.dart';
 import '../auth/domain/usecases/sign_out.dart';
+import '../../core/services/notifications/notification_push_service.dart';
 
 class ProfileDI {
   void init(GetIt di) {
@@ -21,6 +22,7 @@ class ProfileDI {
       () => ProfileProvider(
         repository: di(),
         signOut: di<SignOut>(),
+        beforeSignOut: di<NotificationPushService>().unregisterCurrentDevice,
       ),
     );
   }

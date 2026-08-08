@@ -34,3 +34,8 @@ ios/Flutter/flutter_export_environment.sh
 
 # Misc
 *.log
+
+# Firebase Functions
+functions/node_modules/
+.firebase/
+firebase-debug*.log

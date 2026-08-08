@@ -51,10 +51,7 @@ class ProfileSummaryCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _ProfileAvatar(
-            size: avatarSize,
-            photoUrl: photoUrl,
-          ),
+          _ProfileAvatar(size: avatarSize, photoUrl: photoUrl),
           SizedBox(height: AppSpacing.lg.h),
           Text(subtitle, style: subtitleStyle),
           SizedBox(height: (AppSpacing.sm / 2).h),

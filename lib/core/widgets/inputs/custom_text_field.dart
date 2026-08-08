@@ -155,10 +155,9 @@ class CustomTextField extends StatelessWidget {
             readOnly: readOnly,
             onTap: onTap,
             maxLength: maxLength,
-            style: textStyle ??
-                textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface,
-                ),
+            style:
+                textStyle ??
+                textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface),
             decoration: InputDecoration(
               hintText: hint,
               alignLabelWithHint: true,

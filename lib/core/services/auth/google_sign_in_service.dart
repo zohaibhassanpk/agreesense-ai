@@ -2,7 +2,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 class GoogleSignInService {
   GoogleSignInService({GoogleSignIn? googleSignIn})
-      : _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
+    : _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
 
   final GoogleSignIn _googleSignIn;
   bool _isInitialized = false;

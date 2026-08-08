@@ -1,6 +1,8 @@
 import 'sensor_reading.dart';
 import 'smart_action.dart';
 
+enum DeviceStatus { unknown, loading, online, offline, error }
+
 class HomeDashboard {
   const HomeDashboard({
     required this.greeting,
@@ -9,7 +11,7 @@ class HomeDashboard {
     required this.smartAction,
     required this.updatedLabel,
     required this.sensors,
-    this.deviceOnline = true,
+    this.deviceStatus = DeviceStatus.unknown,
     this.updatedAt,
     this.pumpOn = false,
   });
@@ -20,7 +22,25 @@ class HomeDashboard {
   final SmartAction smartAction;
   final String updatedLabel;
   final List<SensorReading> sensors;
-  final bool deviceOnline;
+  final DeviceStatus deviceStatus;
+  bool get deviceOnline => deviceStatus == DeviceStatus.online;
+  bool get isDeviceStatusChecking =>
+      deviceStatus == DeviceStatus.unknown ||
+      deviceStatus == DeviceStatus.loading;
   final DateTime? updatedAt;
   final bool pumpOn;
+
+  HomeDashboard withPumpStatus(bool isOn) {
+    return HomeDashboard(
+      greeting: greeting,
+      fieldName: fieldName,
+      connectionStatus: connectionStatus,
+      smartAction: smartAction,
+      updatedLabel: updatedLabel,
+      sensors: sensors,
+      deviceStatus: deviceStatus,
+      updatedAt: updatedAt,
+      pumpOn: isOn,
+    );
+  }
 }

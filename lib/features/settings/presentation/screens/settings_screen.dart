@@ -97,15 +97,35 @@ class _SettingsBody extends StatelessWidget {
         ),
         SizedBox(height: AppSpacing.sm.h),
         SettingsThresholdCard(
-          minMoisture: provider.minMoisture,
-          maxTemperature: provider.maxTemperature,
-          maxHumidity: provider.maxHumidity,
-          onMinMoistureChanged: provider.updateMinMoisture,
-          onMinMoistureChangeEnd: provider.commitMinMoisture,
-          onMaxTemperatureChanged: provider.updateMaxTemperature,
-          onMaxTemperatureChangeEnd: provider.commitMaxTemperature,
-          onMaxHumidityChanged: provider.updateMaxHumidity,
-          onMaxHumidityChangeEnd: provider.commitMaxHumidity,
+          temperatureRange: RangeValues(
+            provider.minTemperature,
+            provider.maxTemperature,
+          ),
+          humidityRange: RangeValues(
+            provider.minHumidity,
+            provider.maxHumidity,
+          ),
+          moistureRange: RangeValues(
+            provider.minMoisture,
+            provider.maxMoisture,
+          ),
+          lightRange: RangeValues(provider.minLight, provider.maxLight),
+          onTemperatureChanged: (RangeValues values) =>
+              provider.updateTemperatureRange(values.start, values.end),
+          onTemperatureChangeEnd: (RangeValues values) =>
+              provider.commitTemperatureRange(values.start, values.end),
+          onHumidityChanged: (RangeValues values) =>
+              provider.updateHumidityRange(values.start, values.end),
+          onHumidityChangeEnd: (RangeValues values) =>
+              provider.commitHumidityRange(values.start, values.end),
+          onMoistureChanged: (RangeValues values) =>
+              provider.updateMoistureRange(values.start, values.end),
+          onMoistureChangeEnd: (RangeValues values) =>
+              provider.commitMoistureRange(values.start, values.end),
+          onLightChanged: (RangeValues values) =>
+              provider.updateLightRange(values.start, values.end),
+          onLightChangeEnd: (RangeValues values) =>
+              provider.commitLightRange(values.start, values.end),
         ),
         SizedBox(height: AppSpacing.x2l.h),
         Padding(
@@ -120,11 +140,24 @@ class _SettingsBody extends StatelessWidget {
         ),
         SizedBox(height: AppSpacing.lg.h),
         _ClearLocalDataButton(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Local data cleared.')),
-            );
-          },
+          isClearing: provider.isClearingLocalData,
+          onPressed: provider.isClearingLocalData
+              ? null
+              : () async {
+                  final bool success = await provider.clearLocalData();
+                  if (!context.mounted) {
+                    return;
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        success
+                            ? 'Local data cleared. Settings restored.'
+                            : 'Could not clear local data.',
+                      ),
+                    ),
+                  );
+                },
         ),
       ],
     );
@@ -132,9 +165,13 @@ class _SettingsBody extends StatelessWidget {
 }
 
 class _ClearLocalDataButton extends StatelessWidget {
-  const _ClearLocalDataButton({required this.onPressed});
+  const _ClearLocalDataButton({
+    required this.onPressed,
+    required this.isClearing,
+  });
 
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
+  final bool isClearing;
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +200,12 @@ class _ClearLocalDataButton extends StatelessWidget {
             ),
           ],
         ),
-        child: Center(child: Text('Clear Local Data', style: textStyle)),
+        child: Center(
+          child: Text(
+            isClearing ? 'Clearing Local Data...' : 'Clear Local Data',
+            style: textStyle,
+          ),
+        ),
       ),
     );
   }

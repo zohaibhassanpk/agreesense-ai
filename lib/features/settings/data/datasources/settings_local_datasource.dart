@@ -1,3 +1,4 @@
+import '../../../../core/services/local_storage/local_storage_service.dart';
 import '../models/settings_dashboard_model.dart';
 
 abstract class SettingsLocalDataSource {
@@ -5,14 +6,24 @@ abstract class SettingsLocalDataSource {
 }
 
 class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
+  SettingsLocalDataSourceImpl({this.localStorageService});
+
+  final LocalStorageService? localStorageService;
+
   @override
   Future<SettingsDashboardModel> getDashboard() async {
-    return const SettingsDashboardModel(
+    return SettingsDashboardModel(
       selectedCrop: 'Tobacco',
-      minMoisture: 60,
+      minTemperature: 20,
       maxTemperature: 30,
+      minHumidity: 60,
       maxHumidity: 75,
-      pushNotificationsEnabled: true,
+      minMoisture: 60,
+      maxMoisture: 85,
+      minLight: 45000,
+      maxLight: 70000,
+      pushNotificationsEnabled:
+          await localStorageService?.getNotificationsEnabled() ?? true,
       language: 'English',
     );
   }

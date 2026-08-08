@@ -63,7 +63,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '980497778455',
     projectId: 'agrisenseai-app',
     storageBucket: 'agrisenseai-app.firebasestorage.app',
-    iosClientId: '980497778455-hq57d8mjeoq6nip6vo2518pee9ljeetj.apps.googleusercontent.com',
+    iosClientId:
+        '980497778455-hq57d8mjeoq6nip6vo2518pee9ljeetj.apps.googleusercontent.com',
     iosBundleId: 'app.fyp.agrisenseaiapp',
   );
 }

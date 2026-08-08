@@ -9,11 +9,11 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
 import '../../../../core/widgets/snackbars/custom_snackbars.dart';
 import '../../domain/entities/analytics_dashboard.dart';
+import '../../domain/entities/analytics_metric_average.dart';
 import '../../domain/entities/analytics_period_data.dart';
 import '../../domain/entities/analytics_time_range.dart';
 import '../providers/analytics_provider.dart';
 import 'analytics_header.dart';
-import 'analytics_light_intensity_card.dart';
 import 'analytics_metric_average_card.dart';
 import 'analytics_metric_chart_card.dart';
 import 'analytics_range_tabs.dart';
@@ -34,8 +34,6 @@ class AnalyticsScreenContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lightSeries = period.lightIntensitySeries;
-    final lightStats = period.lightIntensityStats;
     final TextStyle averagesTitleStyle =
         (context.textTheme.titleMedium ?? AppTextStyles.titleMedium).copyWith(
           color: AppColors.textPrimary,
@@ -75,42 +73,7 @@ class AnalyticsScreenContent extends StatelessWidget {
                   SizedBox(height: 24.h),
                   Text(period.averagesTitle, style: averagesTitleStyle),
                   SizedBox(height: 12.h),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AnalyticsMetricAverageCard(
-                          metric: period.averages[0],
-                          isWide: false,
-                          showIcon: true,
-                          centerContent: false,
-                        ),
-                      ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: AnalyticsMetricAverageCard(
-                          metric: period.averages[1],
-                          isWide: false,
-                          showIcon: true,
-                          centerContent: false,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 12.h),
-                  AnalyticsMetricAverageCard(
-                    metric: period.averages[2],
-                    isWide: true,
-                    showIcon: true,
-                    centerContent: false,
-                  ),
-                  if (lightSeries != null && lightStats != null) ...[
-                    SizedBox(height: 24.h),
-                    AnalyticsLightIntensityCard(
-                      series: lightSeries,
-                      stats: lightStats,
-                      axisLabels: period.axisLabels,
-                    ),
-                  ],
+                  _AnalyticsSummaryGrid(metrics: period.averages),
                 ],
               ),
             ),
@@ -130,5 +93,47 @@ class AnalyticsScreenContent extends StatelessWidget {
         type: SnackbarType.error,
       );
     }
+  }
+}
+
+class _AnalyticsSummaryGrid extends StatelessWidget {
+  const _AnalyticsSummaryGrid({required this.metrics});
+
+  final List<AnalyticsMetricAverage> metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> rows = <Widget>[];
+
+    for (int index = 0; index < metrics.length; index += 2) {
+      if (rows.isNotEmpty) {
+        rows.add(SizedBox(height: 12.h));
+      }
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _summaryCard(metrics[index])),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: index + 1 < metrics.length
+                  ? _summaryCard(metrics[index + 1])
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(children: rows);
+  }
+
+  Widget _summaryCard(AnalyticsMetricAverage metric) {
+    return AnalyticsMetricAverageCard(
+      metric: metric,
+      isWide: false,
+      showIcon: true,
+      centerContent: false,
+    );
   }
 }

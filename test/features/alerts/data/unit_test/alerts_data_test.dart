@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:agrisenseaiapp/core/services/alerts/alerts_store.dart';
+import 'package:agrisenseaiapp/core/services/local_storage/local_storage_service.dart';
 import 'package:agrisenseaiapp/features/alerts/data/datasources/alerts_live_datasource.dart';
 import 'package:agrisenseaiapp/features/alerts/data/datasources/alerts_local_datasource.dart';
 import 'package:agrisenseaiapp/features/alerts/data/models/alert_item_model.dart';
@@ -27,13 +29,33 @@ class _FailingSeedAlertsDataSource implements AlertsLocalDataSource {
   }
 }
 
-AlertItem _alert(String title, DateTime timestamp) {
+class _MemoryAlertStorage extends LocalStorageService {
+  String? alertsJson;
+  Completer<void>? nextSave;
+
+  @override
+  Future<String?> getSensorAlertsJson() async => alertsJson;
+
+  @override
+  Future<void> saveSensorAlertsJson(String json) async {
+    alertsJson = json;
+    nextSave?.complete();
+    nextSave = null;
+  }
+}
+
+AlertItem _alert(
+  String title,
+  DateTime timestamp, {
+  AlertSeverity severity = AlertSeverity.warning,
+}) {
   return AlertItem(
     title: title,
     message: '$title message',
-    timeLabel: 'just now',
+    recommendedAction: 'Inspect the tobacco field and verify the sensor.',
     timestamp: timestamp,
-    severity: AlertSeverity.warning,
+    createdAt: timestamp,
+    severity: severity,
     icon: 'icon.svg',
   );
 }
@@ -44,12 +66,14 @@ void main() {
       localDataSource: AlertsLocalDataSourceImpl(),
     );
     final sections = await repo.getAlertSections();
-    expect(sections.length, greaterThan(0));
+    expect(sections, isEmpty);
   });
 
   test('alerts store keeps the 50 newest session alerts', () {
     final AlertsStore store = AlertsStore();
-    final DateTime start = DateTime(2026, 7, 13);
+    final DateTime start = DateTime.now().subtract(
+      Duration(minutes: AlertsStore.maxItems + 1),
+    );
 
     for (int index = 0; index <= AlertsStore.maxItems; index++) {
       store.addAlert(_alert('$index', start.add(Duration(minutes: index))));
@@ -60,15 +84,74 @@ void main() {
     expect(store.liveItems.last.title, '1');
   });
 
+  test('alerts store restores and persists Warning/Critical alerts', () async {
+    final _MemoryAlertStorage storage = _MemoryAlertStorage();
+    final DateTime timestamp = DateTime.now().subtract(
+      const Duration(minutes: 2),
+    );
+    storage.alertsJson = jsonEncode(<Map<String, String>>[
+      <String, String>{
+        'title': 'Warning: High Temperature',
+        'message': 'Temperature is high.',
+        'timestamp': timestamp.toIso8601String(),
+        'severity': 'warning',
+        'icon': 'temperature.svg',
+      },
+    ]);
+    final AlertsStore store = AlertsStore(storage: storage);
+
+    await store.load();
+    expect(store.liveItems.single.severity, AlertSeverity.warning);
+
+    storage.nextSave = Completer<void>();
+    store.addAlert(
+      _alert(
+        'Critical: High Temperature',
+        timestamp.add(const Duration(minutes: 1)),
+        severity: AlertSeverity.critical,
+      ),
+    );
+    await storage.nextSave!.future;
+
+    final List<Object?> saved =
+        jsonDecode(storage.alertsJson!) as List<Object?>;
+    expect(saved, hasLength(2));
+    expect((saved.first as Map<String, Object?>)['severity'], 'critical');
+    expect(
+      (saved.first as Map<String, Object?>)['recommendedAction'],
+      contains('tobacco'),
+    );
+  });
+
+  test('alerts store merges history written by a background isolate', () async {
+    final _MemoryAlertStorage storage = _MemoryAlertStorage();
+    final DateTime now = DateTime.now().subtract(const Duration(minutes: 10));
+    final AlertsStore store = AlertsStore(storage: storage);
+    store.addAlert(_alert('foreground', now));
+    await store.flush();
+
+    storage.alertsJson = jsonEncode(<Map<String, String>>[
+      <String, String>{
+        'title': 'background',
+        'message': 'background message',
+        'timestamp': now.add(const Duration(minutes: 5)).toIso8601String(),
+        'severity': 'critical',
+        'icon': 'icon.svg',
+      },
+    ]);
+    await store.reload();
+
+    expect(store.liveItems.map((AlertItem item) => item.title), <String>[
+      'background',
+      'foreground',
+    ]);
+  });
+
   test(
     'live datasource merges, groups, and sorts alerts newest-first',
     () async {
       final DateTime now = DateTime.now();
-      final DateTime earlier = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      ).subtract(const Duration(hours: 1));
+      final DateTime earlier = now.subtract(const Duration(hours: 1));
       final AlertsStore store = AlertsStore();
       final AlertsLiveDataSource source = AlertsLiveDataSourceImpl(
         alertsStore: store,
@@ -80,8 +163,7 @@ void main() {
           StreamIterator<List<AlertSectionModel>>(source.watchAlertSections());
 
       expect(await iterator.moveNext(), isTrue);
-      expect(iterator.current.single.label, 'Earlier');
-      expect(iterator.current.single.isHistorical, isTrue);
+      expect(iterator.current.single.label, 'Today');
 
       store
         ..addAlert(
@@ -95,11 +177,11 @@ void main() {
       expect(await iterator.moveNext(), isTrue);
       expect(iterator.current.map((section) => section.label), <String>[
         'Today',
-        'Earlier',
       ]);
       expect(iterator.current.first.items.map((item) => item.title), <String>[
         'newest live',
         'older live',
+        'seed',
       ]);
 
       await iterator.cancel();
@@ -147,4 +229,63 @@ void main() {
 
     await iterator.cancel();
   });
+
+  test('alerts store rejects and removes entries at least eight hours old', () {
+    final DateTime now = DateTime.now();
+    final AlertsStore store = AlertsStore();
+
+    expect(
+      store.addAlert(_alert('expired', now.subtract(alertRetention))),
+      isFalse,
+    );
+    expect(
+      store.addAlert(
+        _alert(
+          'recent',
+          now.subtract(alertRetention).add(const Duration(minutes: 1)),
+        ),
+      ),
+      isTrue,
+    );
+    expect(store.liveItems.map((AlertItem item) => item.title), <String>[
+      'recent',
+    ]);
+
+    expect(
+      _alert(
+        'boundary',
+        now.subtract(alertRetention),
+      ).isWithinRetention(now: now),
+      isFalse,
+    );
+  });
+
+  test(
+    'live datasource excludes stale cached alerts from sections and counts',
+    () async {
+      final DateTime now = DateTime.now();
+      final AlertsStore store = AlertsStore();
+      final AlertsLiveDataSource source = AlertsLiveDataSourceImpl(
+        alertsStore: store,
+        localDataSource: _SeedAlertsDataSource(<AlertItemModel>[
+          AlertItemModel.fromEntity(
+            _alert('expired seed', now.subtract(const Duration(hours: 9))),
+          ),
+          AlertItemModel.fromEntity(
+            _alert('recent seed', now.subtract(const Duration(hours: 1))),
+          ),
+        ]),
+      );
+      final List<AlertSectionModel> sections = await source
+          .watchAlertSections()
+          .first;
+
+      expect(
+        sections
+            .expand((AlertSectionModel section) => section.items)
+            .map((AlertItem item) => item.title),
+        <String>['recent seed'],
+      );
+    },
+  );
 }

@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import '../../../../core/constants/app_assets.dart';
+import '../../../../core/entities/app_user.dart';
 import '../../../../core/providers/auth_session_provider.dart';
 import '../../../../core/services/realtime_db/sensor_database_service.dart';
 import '../../domain/entities/analytics_time_range.dart';
@@ -17,32 +19,36 @@ abstract class AnalyticsRemoteDataSource {
 
 /// Builds the analytics dashboard from the field's `history` samples.
 ///
-/// One month-wide query feeds all three ranges; each range buckets its
-/// window, averages the samples per bucket and normalizes them into the
-/// 0..1 chart space the painter expects (y is top-anchored, so higher
-/// values map to smaller y).
+/// One calendar-year query feeds all three ranges. Day and Week use rolling
+/// time buckets, while Month plots every available History sample at its real
+/// January-through-December position. Temperature, humidity, and moisture use
+/// a shared 0..100 axis; light uses a separately labelled lux axis.
 class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
   AnalyticsRemoteDataSourceImpl({
     required this.sensorDatabase,
     required this.authSessionProvider,
-  });
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now;
 
-  final SensorDatabaseService sensorDatabase;
-  final AuthSessionProvider authSessionProvider;
+  final HistoricalSensorDatabase sensorDatabase;
+  final AuthSession authSessionProvider;
+  final DateTime Function() _now;
 
   static const Duration _dayWindow = Duration(hours: 24);
   static const Duration _weekWindow = Duration(days: 7);
-  static const Duration _monthWindow = Duration(days: 28);
   static const Duration _refreshInterval = Duration(minutes: 1);
 
-  /// Vertical padding of the normalized chart space, so curves stay clear of
-  /// the card edges like the design mocks.
-  static const double _chartTopPadding = 0.08;
-  static const double _chartBottomPadding = 0.92;
+  static const double _chartTopPadding = 0;
+  static const double _chartBottomPadding = 1;
+  static const double _primaryAxisMaximum = 100;
+  static const List<String> _primaryYAxisLabels = <String>[
+    '100',
+    '75',
+    '50',
+    '25',
+    '0',
+  ];
 
-  /// Charted metrics. The design's third "Soil pH" series is replaced by
-  /// humidity: the hardware has no pH probe, and the SRS asks for moisture,
-  /// temperature and humidity trends.
   static final List<_MetricSpec> _metrics = [
     _MetricSpec(
       seriesLabel: 'Moisture',
@@ -50,8 +56,6 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
       icon: AppAssets.drop,
       colorKey: 'blue',
       unit: '%',
-      minValue: 0,
-      maxValue: 100,
       valueOf: (SensorSample sample) => sample.soilMoisturePercent,
     ),
     _MetricSpec(
@@ -60,8 +64,6 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
       icon: AppAssets.temprature,
       colorKey: 'red',
       unit: '°C',
-      minValue: 0,
-      maxValue: 50,
       valueOf: (SensorSample sample) => sample.temperatureC,
     ),
     _MetricSpec(
@@ -70,31 +72,27 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
       icon: AppAssets.cloud,
       colorKey: 'green',
       unit: '%',
-      minValue: 0,
-      maxValue: 100,
       valueOf: (SensorSample sample) => sample.humidityPercent,
+    ),
+    _MetricSpec(
+      seriesLabel: 'Light',
+      averageLabel: 'Light Intensity',
+      icon: AppAssets.sun,
+      colorKey: 'yellow',
+      unit: ' lux',
+      usesLightAxis: true,
+      valueOf: (SensorSample sample) => sample.lightLux,
     ),
   ];
 
-  static final _MetricSpec _lightMetric = _MetricSpec(
-    seriesLabel: 'Light Intensity',
-    averageLabel: 'Light Intensity',
-    icon: AppAssets.sun,
-    colorKey: 'yellow',
-    unit: 'lux',
-    minValue: 0,
-    maxValue: 100000,
-    valueOf: (SensorSample sample) => sample.lightLux,
-  );
-
   @override
   Future<AnalyticsDashboardModel> getDashboard() async {
-    final DateTime now = DateTime.now();
-    final String userKey = await sensorDatabase.resolveUserKey(
+    final DateTime now = _now();
+    final String userKey = await sensorDatabase.resolveHistoryUserKey(
       authSessionProvider.user,
     );
     final List<SensorSample> samples = await sensorDatabase.getHistoryFrom(
-      now.subtract(_monthWindow),
+      _historyQueryStart(now),
       userKey: userKey,
     );
 
@@ -108,52 +106,93 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
     Timer? refreshTimer;
 
     List<SensorSample> latestSamples = const [];
-    bool hasSamples = false;
     bool isActive = false;
+    bool hasHistorySnapshot = false;
+    int bindingGeneration = 0;
+    String? boundUserIdentity;
 
     void emit() {
-      if (!isActive || !hasSamples || controller.isClosed) {
+      if (!isActive || !hasHistorySnapshot || controller.isClosed) {
         return;
       }
-      controller.add(
-        _buildDashboard(samples: latestSamples, now: DateTime.now()),
-      );
+      controller.add(_buildDashboard(samples: latestSamples, now: _now()));
     }
 
-    void addError(Object error, StackTrace stackTrace) {
-      if (isActive && !controller.isClosed) {
-        controller.addError(error, stackTrace);
+    String? identityOf(AppUser? user) {
+      if (user == null) {
+        return null;
       }
+      return '${user.uid}\u0000${user.email ?? ''}\u0000${user.phoneNumber ?? ''}';
+    }
+
+    Future<void> bindHistoryForCurrentUser() async {
+      final int generation = ++bindingGeneration;
+      final AppUser? user = authSessionProvider.user;
+
+      try {
+        final StreamSubscription<List<SensorSample>>? previousSubscription =
+            historySubscription;
+        historySubscription = null;
+        latestSamples = const [];
+        hasHistorySnapshot = false;
+        await previousSubscription?.cancel();
+        if (!isActive || generation != bindingGeneration || user == null) {
+          return;
+        }
+
+        final String userKey = await sensorDatabase.resolveHistoryUserKey(user);
+        if (!isActive || generation != bindingGeneration) {
+          return;
+        }
+
+        historySubscription = sensorDatabase
+            .watchHistoryFrom(_historyQueryStart(_now()), userKey: userKey)
+            .listen(
+              (List<SensorSample> samples) {
+                if (!isActive || generation != bindingGeneration) {
+                  return;
+                }
+                latestSamples = samples;
+                hasHistorySnapshot = true;
+                emit();
+              },
+              onError: (Object error, StackTrace stackTrace) {
+                if (isActive &&
+                    generation == bindingGeneration &&
+                    !controller.isClosed) {
+                  controller.addError(error, stackTrace);
+                }
+              },
+            );
+      } catch (error, stackTrace) {
+        if (isActive &&
+            generation == bindingGeneration &&
+            !controller.isClosed) {
+          controller.addError(error, stackTrace);
+        }
+      }
+    }
+
+    void handleAuthChange() {
+      final String? identity = identityOf(authSessionProvider.user);
+      if (identity == boundUserIdentity) {
+        return;
+      }
+      boundUserIdentity = identity;
+      unawaited(bindHistoryForCurrentUser());
     }
 
     controller = StreamController<AnalyticsDashboardModel>(
-      onListen: () async {
+      onListen: () {
         isActive = true;
-        try {
-          final String userKey = await sensorDatabase.resolveUserKey(
-            authSessionProvider.user,
-          );
-          if (!isActive || controller.isClosed) {
-            return;
-          }
-
-          historySubscription = sensorDatabase
-              .watchHistoryFrom(
-                DateTime.now().subtract(_monthWindow),
-                userKey: userKey,
-              )
-              .listen((List<SensorSample> samples) {
-                latestSamples = samples;
-                hasSamples = true;
-                emit();
-              }, onError: addError);
-          refreshTimer = Timer.periodic(_refreshInterval, (_) => emit());
-        } catch (error, stackTrace) {
-          addError(error, stackTrace);
-        }
+        authSessionProvider.addListener(handleAuthChange);
+        refreshTimer = Timer.periodic(_refreshInterval, (_) => emit());
+        handleAuthChange();
       },
       onCancel: () async {
         isActive = false;
+        bindingGeneration++;
+        authSessionProvider.removeListener(handleAuthChange);
         refreshTimer?.cancel();
         await historySubscription?.cancel();
       },
@@ -191,16 +230,70 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
           window: _weekWindow,
           bucketCount: 7,
         ),
-        _buildPeriod(
-          range: AnalyticsTimeRange.month,
-          tabLabel: 'Month',
-          axisLabels: const ['W1', 'W2', 'W3', 'W4'],
-          samples: samples,
-          windowEnd: now,
-          window: _monthWindow,
-          bucketCount: 4,
-        ),
+        _buildMonthlyPeriod(samples: samples, now: now),
       ],
+    );
+  }
+
+  DateTime _historyQueryStart(DateTime now) {
+    final DateTime startOfYear = DateTime(now.year);
+    final DateTime startOfWeek = now.subtract(_weekWindow);
+    return startOfYear.isBefore(startOfWeek) ? startOfYear : startOfWeek;
+  }
+
+  AnalyticsPeriodDataModel _buildMonthlyPeriod({
+    required List<SensorSample> samples,
+    required DateTime now,
+  }) {
+    final List<SensorSample> yearSamples =
+        samples
+            .where((SensorSample sample) => sample.timestamp.year == now.year)
+            .toList(growable: false)
+          ..sort(
+            (SensorSample first, SensorSample second) =>
+                first.timestamp.compareTo(second.timestamp),
+          );
+    final _ChartScale scale = _chartScale(yearSamples);
+    final DateTime yearStart = DateTime(now.year);
+    final DateTime yearEnd = DateTime(now.year + 1);
+
+    return AnalyticsPeriodDataModel(
+      range: AnalyticsTimeRange.month,
+      tabLabel: 'Month',
+      axisLabels: const <String>[
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ],
+      yAxisLabels: _primaryYAxisLabels,
+      lightYAxisLabels: _lightYAxisLabels(scale.lightMaximum),
+      averagesTitle: 'Averages (Month)',
+      metricSeries: _metrics
+          .map(
+            (_MetricSpec metric) => _buildCompleteHistorySeries(
+              metric: metric,
+              samples: yearSamples,
+              rangeStart: yearStart,
+              rangeEnd: yearEnd,
+              scale: scale,
+            ),
+          )
+          .toList(),
+      averages: _metrics
+          .map(
+            (_MetricSpec metric) =>
+                _buildAverage(metric: metric, samples: yearSamples),
+          )
+          .toList(),
     );
   }
 
@@ -221,11 +314,14 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
     final List<SensorSample> windowSamples = samples
         .where((SensorSample sample) => !sample.timestamp.isBefore(windowStart))
         .toList();
+    final _ChartScale scale = _chartScale(windowSamples);
 
     return AnalyticsPeriodDataModel(
       range: range,
       tabLabel: tabLabel,
       axisLabels: axisLabels,
+      yAxisLabels: _primaryYAxisLabels,
+      lightYAxisLabels: _lightYAxisLabels(scale.lightMaximum),
       averagesTitle: 'Averages ($tabLabel)',
       metricSeries: _metrics
           .map(
@@ -235,6 +331,7 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
               windowStart: windowStart,
               window: window,
               bucketCount: bucketCount,
+              scale: scale,
             ),
           )
           .toList(),
@@ -244,14 +341,6 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
                 _buildAverage(metric: metric, samples: windowSamples),
           )
           .toList(),
-      lightIntensitySeries: _buildSeries(
-        metric: _lightMetric,
-        samples: windowSamples,
-        windowStart: windowStart,
-        window: window,
-        bucketCount: bucketCount,
-      ),
-      lightIntensityStats: _buildLightStats(windowSamples),
     );
   }
 
@@ -261,6 +350,77 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
     required DateTime windowStart,
     required Duration window,
     required int bucketCount,
+    required _ChartScale scale,
+  }) => _buildBucketedSeries(
+    metric: metric,
+    samples: samples,
+    bucketCount: bucketCount,
+    scale: scale,
+    bucketOf: (SensorSample sample) =>
+        (sample.timestamp.difference(windowStart).inMilliseconds *
+                bucketCount ~/
+                window.inMilliseconds)
+            .clamp(0, bucketCount - 1)
+            .toInt(),
+  );
+
+  AnalyticsMetricSeriesModel _buildCompleteHistorySeries({
+    required _MetricSpec metric,
+    required List<SensorSample> samples,
+    required DateTime rangeStart,
+    required DateTime rangeEnd,
+    required _ChartScale scale,
+  }) {
+    final List<({DateTime timestamp, double value})> values = samples
+        .map(
+          (SensorSample sample) =>
+              (timestamp: sample.timestamp, value: metric.valueOf(sample)),
+        )
+        .where((item) => item.value != null)
+        .map((item) => (timestamp: item.timestamp, value: item.value!))
+        .toList(growable: false);
+    final double maximum = metric.usesLightAxis
+        ? scale.lightMaximum
+        : scale.primaryMaximum;
+    final int rangeMilliseconds = rangeEnd
+        .difference(rangeStart)
+        .inMilliseconds;
+    final List<AnalyticsChartPointModel> points = [];
+
+    for (int index = 0; index < values.length; index++) {
+      final current = values[index];
+      final int monthGap = index == 0
+          ? 0
+          : (current.timestamp.year - values[index - 1].timestamp.year) * 12 +
+                current.timestamp.month -
+                values[index - 1].timestamp.month;
+      points.add(
+        AnalyticsChartPointModel(
+          x:
+              (current.timestamp.difference(rangeStart).inMilliseconds /
+                      rangeMilliseconds)
+                  .clamp(0.0, 1.0)
+                  .toDouble(),
+          y: _normalize(current.value, minimum: 0, maximum: maximum),
+          breakBefore: monthGap > 1,
+        ),
+      );
+    }
+
+    return AnalyticsMetricSeriesModel(
+      label: metric.seriesLabel,
+      icon: metric.icon,
+      colorKey: metric.colorKey,
+      points: points,
+    );
+  }
+
+  AnalyticsMetricSeriesModel _buildBucketedSeries({
+    required _MetricSpec metric,
+    required List<SensorSample> samples,
+    required int bucketCount,
+    required int Function(SensorSample sample) bucketOf,
+    required _ChartScale scale,
   }) {
     final List<double> bucketSums = List<double>.filled(bucketCount, 0);
     final List<int> bucketCounts = List<int>.filled(bucketCount, 0);
@@ -270,42 +430,43 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
       if (value == null) {
         continue;
       }
-      final int bucket =
-          (sample.timestamp.difference(windowStart).inMilliseconds *
-                  bucketCount ~/
-                  window.inMilliseconds)
-              .clamp(0, bucketCount - 1)
-              .toInt();
+      final int bucket = bucketOf(sample).clamp(0, bucketCount - 1).toInt();
       bucketSums[bucket] += value;
       bucketCounts[bucket] += 1;
     }
 
-    final List<AnalyticsChartPointModel> points = [];
+    final List<({int bucket, double value})> bucketAverages = [];
     for (int bucket = 0; bucket < bucketCount; bucket++) {
       if (bucketCounts[bucket] == 0) {
         continue;
       }
-      final double average = bucketSums[bucket] / bucketCounts[bucket];
-      points.add(
-        AnalyticsChartPointModel(
-          x: bucketCount == 1 ? 1 : bucket / (bucketCount - 1),
-          y: _normalize(average, metric),
-        ),
+      bucketAverages.add((
+        bucket: bucket,
+        value: bucketSums[bucket] / bucketCounts[bucket],
+      ));
+    }
+
+    if (bucketAverages.isEmpty) {
+      return AnalyticsMetricSeriesModel(
+        label: metric.seriesLabel,
+        icon: metric.icon,
+        colorKey: metric.colorKey,
+        points: const [],
       );
     }
 
-    // The painter draws a curve plus an end marker, so guarantee at least
-    // two points: duplicate a lone reading and flat-line an empty window.
-    if (points.length == 1) {
-      final AnalyticsChartPointModel only = points.first;
-      points
-        ..clear()
-        ..add(AnalyticsChartPointModel(x: 0, y: only.y))
-        ..add(AnalyticsChartPointModel(x: 1, y: only.y));
-    } else if (points.isEmpty) {
-      points
-        ..add(const AnalyticsChartPointModel(x: 0, y: _chartBottomPadding))
-        ..add(const AnalyticsChartPointModel(x: 1, y: _chartBottomPadding));
+    final double maximum = metric.usesLightAxis
+        ? scale.lightMaximum
+        : scale.primaryMaximum;
+    final List<AnalyticsChartPointModel> points = [];
+    for (int index = 0; index < bucketAverages.length; index++) {
+      final ({int bucket, double value}) item = bucketAverages[index];
+      points.add(
+        AnalyticsChartPointModel(
+          x: bucketCount == 1 ? 1 : item.bucket / (bucketCount - 1),
+          y: _normalize(item.value, minimum: 0, maximum: maximum),
+        ),
+      );
     }
 
     return AnalyticsMetricSeriesModel(
@@ -314,6 +475,73 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
       colorKey: metric.colorKey,
       points: points,
     );
+  }
+
+  _ChartScale _chartScale(List<SensorSample> samples) {
+    final List<double> lightValues = samples
+        .map((SensorSample sample) => sample.lightLux)
+        .whereType<double>()
+        .toList(growable: false);
+    final double observedLightMaximum = lightValues.isEmpty
+        ? _primaryAxisMaximum
+        : lightValues.reduce(math.max);
+    return _ChartScale(
+      primaryMaximum: _primaryAxisMaximum,
+      lightMaximum: _niceAxisMaximum(observedLightMaximum),
+    );
+  }
+
+  double _niceAxisMaximum(double observedMaximum) {
+    final double safeMaximum = math.max(observedMaximum, 100);
+    final double roughInterval = safeMaximum / 4;
+    final double magnitude = math
+        .pow(10, (math.log(roughInterval) / math.ln10).floor())
+        .toDouble();
+    final double normalized = roughInterval / magnitude;
+    final double factor;
+    if (normalized <= 1) {
+      factor = 1;
+    } else if (normalized <= 2) {
+      factor = 2;
+    } else if (normalized <= 2.5) {
+      factor = 2.5;
+    } else if (normalized <= 5) {
+      factor = 5;
+    } else {
+      factor = 10;
+    }
+    return factor * magnitude * 4;
+  }
+
+  List<String> _lightYAxisLabels(double maximum) => List<String>.generate(
+    5,
+    (int index) => _formatAxisValue(maximum * (4 - index) / 4),
+    growable: false,
+  );
+
+  String _formatAxisValue(double value) {
+    if (value.abs() >= 1000) {
+      final double thousands = value / 1000;
+      return '${_formatValue(thousands)}k';
+    }
+    return _formatValue(value);
+  }
+
+  /// Maps a value into the painter's top-anchored 0..1 space.
+  double _normalize(
+    double value, {
+    required double minimum,
+    required double maximum,
+  }) {
+    if (maximum <= minimum) {
+      return (_chartTopPadding + _chartBottomPadding) / 2;
+    }
+    final double fraction = ((value - minimum) / (maximum - minimum)).clamp(
+      0.0,
+      1.0,
+    );
+    return _chartBottomPadding -
+        fraction * (_chartBottomPadding - _chartTopPadding);
   }
 
   AnalyticsMetricAverageModel _buildAverage({
@@ -340,80 +568,6 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
       icon: metric.icon,
       colorKey: metric.colorKey,
     );
-  }
-
-  List<AnalyticsMetricAverageModel> _buildLightStats(
-    List<SensorSample> samples,
-  ) {
-    final List<double> values = samples
-        .map((SensorSample sample) => sample.lightLux)
-        .whereType<double>()
-        .toList();
-
-    SensorSample? latestSample;
-    for (final SensorSample sample in samples) {
-      if (sample.lightLux == null) {
-        continue;
-      }
-      if (latestSample == null ||
-          sample.timestamp.isAfter(latestSample.timestamp)) {
-        latestSample = sample;
-      }
-    }
-
-    final String averageValue;
-    final String minimumValue;
-    final String maximumValue;
-    final String latestValue;
-    if (values.isEmpty) {
-      averageValue = '--';
-      minimumValue = '--';
-      maximumValue = '--';
-      latestValue = '--';
-    } else {
-      final double average =
-          values.reduce((double a, double b) => a + b) / values.length;
-      final double minimum = values.reduce(
-        (double a, double b) => a < b ? a : b,
-      );
-      final double maximum = values.reduce(
-        (double a, double b) => a > b ? a : b,
-      );
-      averageValue = _formatLux(average);
-      minimumValue = _formatLux(minimum);
-      maximumValue = _formatLux(maximum);
-      latestValue = _formatLux(latestSample!.lightLux!);
-    }
-
-    return [
-      _buildLightStat(label: 'Average', value: averageValue),
-      _buildLightStat(label: 'Minimum', value: minimumValue),
-      _buildLightStat(label: 'Maximum', value: maximumValue),
-      _buildLightStat(label: 'Latest Reading', value: latestValue),
-    ];
-  }
-
-  AnalyticsMetricAverageModel _buildLightStat({
-    required String label,
-    required String value,
-  }) {
-    return AnalyticsMetricAverageModel(
-      label: label,
-      value: value,
-      icon: AppAssets.sun,
-      colorKey: 'yellow',
-    );
-  }
-
-  /// Maps a metric value into the painter's top-anchored 0..1 space.
-  double _normalize(double value, _MetricSpec metric) {
-    final double fraction =
-        ((value - metric.minValue) / (metric.maxValue - metric.minValue)).clamp(
-          0.0,
-          1.0,
-        );
-    return _chartBottomPadding -
-        fraction * (_chartBottomPadding - _chartTopPadding);
   }
 
   List<String> _dayAxisLabels(DateTime now) {
@@ -445,8 +599,6 @@ class AnalyticsRemoteDataSourceImpl implements AnalyticsRemoteDataSource {
     }
     return rounded.toStringAsFixed(1);
   }
-
-  String _formatLux(double value) => '${_formatValue(value)} lux';
 }
 
 class _MetricSpec {
@@ -456,8 +608,7 @@ class _MetricSpec {
     required this.icon,
     required this.colorKey,
     required this.unit,
-    required this.minValue,
-    required this.maxValue,
+    this.usesLightAxis = false,
     required this.valueOf,
   });
 
@@ -466,7 +617,13 @@ class _MetricSpec {
   final String icon;
   final String colorKey;
   final String unit;
-  final double minValue;
-  final double maxValue;
+  final bool usesLightAxis;
   final double? Function(SensorSample sample) valueOf;
+}
+
+class _ChartScale {
+  const _ChartScale({required this.primaryMaximum, required this.lightMaximum});
+
+  final double primaryMaximum;
+  final double lightMaximum;
 }

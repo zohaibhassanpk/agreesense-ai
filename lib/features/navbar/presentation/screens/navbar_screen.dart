@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../alerts/presentation/screens/alerts_screen.dart';
 import '../../../analytics/presentation/screens/analytics_screen.dart';
-import '../../../devices/presentation/screens/devices_screen.dart';
 import '../../../home/presentation/screens/home_screen.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../providers/navbar_provider.dart';
@@ -29,7 +28,6 @@ class _NavbarView extends StatelessWidget {
     HomeScreen(),
     AlertsScreen(),
     AnalyticsScreen(),
-    DevicesScreen(),
     SettingsScreen(),
   ];
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/extensions/responsive_extension.dart';
+import '../../../../core/services/settings/threshold_settings_service.dart';
 import '../../../../core/theme/app_border_radius.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -9,26 +10,32 @@ import 'settings_slider_row.dart';
 class SettingsThresholdCard extends StatelessWidget {
   const SettingsThresholdCard({
     super.key,
-    required this.minMoisture,
-    required this.maxTemperature,
-    required this.maxHumidity,
-    required this.onMinMoistureChanged,
-    required this.onMinMoistureChangeEnd,
-    required this.onMaxTemperatureChanged,
-    required this.onMaxTemperatureChangeEnd,
-    required this.onMaxHumidityChanged,
-    required this.onMaxHumidityChangeEnd,
+    required this.temperatureRange,
+    required this.humidityRange,
+    required this.moistureRange,
+    required this.lightRange,
+    required this.onTemperatureChanged,
+    required this.onTemperatureChangeEnd,
+    required this.onHumidityChanged,
+    required this.onHumidityChangeEnd,
+    required this.onMoistureChanged,
+    required this.onMoistureChangeEnd,
+    required this.onLightChanged,
+    required this.onLightChangeEnd,
   });
 
-  final double minMoisture;
-  final double maxTemperature;
-  final double maxHumidity;
-  final ValueChanged<double> onMinMoistureChanged;
-  final ValueChanged<double> onMinMoistureChangeEnd;
-  final ValueChanged<double> onMaxTemperatureChanged;
-  final ValueChanged<double> onMaxTemperatureChangeEnd;
-  final ValueChanged<double> onMaxHumidityChanged;
-  final ValueChanged<double> onMaxHumidityChangeEnd;
+  final RangeValues temperatureRange;
+  final RangeValues humidityRange;
+  final RangeValues moistureRange;
+  final RangeValues lightRange;
+  final ValueChanged<RangeValues> onTemperatureChanged;
+  final ValueChanged<RangeValues> onTemperatureChangeEnd;
+  final ValueChanged<RangeValues> onHumidityChanged;
+  final ValueChanged<RangeValues> onHumidityChangeEnd;
+  final ValueChanged<RangeValues> onMoistureChanged;
+  final ValueChanged<RangeValues> onMoistureChangeEnd;
+  final ValueChanged<RangeValues> onLightChanged;
+  final ValueChanged<RangeValues> onLightChangeEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -49,38 +56,58 @@ class SettingsThresholdCard extends StatelessWidget {
       child: Column(
         children: [
           SettingsSliderRow(
-            title: 'Min. Moisture Level',
-            valueLabel: '${minMoisture.toStringAsFixed(0)}%',
-            value: minMoisture,
-            min: 0,
-            max: 100,
-            onChanged: onMinMoistureChanged,
-            onChangeEnd: onMinMoistureChangeEnd,
-          ),
-          SizedBox(height: AppSpacing.lg.h),
-          SettingsSliderRow(
-            title: 'Max. Temperature',
-            valueLabel: '${maxTemperature.toStringAsFixed(0)}\u00B0C',
-            value: maxTemperature,
-            min: 0,
-            max: 50,
+            title: 'Temperature',
+            values: temperatureRange,
+            min: ThresholdSettingsService.temperatureRangeMin,
+            max: ThresholdSettingsService.temperatureRangeMax,
+            divisions: 50,
+            unit: '°C',
             activeColor: AppColors.error,
-            onChanged: onMaxTemperatureChanged,
-            onChangeEnd: onMaxTemperatureChangeEnd,
+            onChanged: onTemperatureChanged,
+            onChangeEnd: onTemperatureChangeEnd,
           ),
-          SizedBox(height: AppSpacing.lg.h),
+          _divider(),
           SettingsSliderRow(
-            title: 'Max. Humidity',
-            valueLabel: '${maxHumidity.toStringAsFixed(0)}%',
-            value: maxHumidity,
-            min: 0,
-            max: 100,
+            title: 'Humidity',
+            values: humidityRange,
+            min: ThresholdSettingsService.humidityRangeMin,
+            max: ThresholdSettingsService.humidityRangeMax,
+            divisions: 100,
+            unit: '%',
             activeColor: AppColors.accentBlue,
-            onChanged: onMaxHumidityChanged,
-            onChangeEnd: onMaxHumidityChangeEnd,
+            onChanged: onHumidityChanged,
+            onChangeEnd: onHumidityChangeEnd,
+          ),
+          _divider(),
+          SettingsSliderRow(
+            title: 'Soil Moisture',
+            values: moistureRange,
+            min: ThresholdSettingsService.moistureRangeMin,
+            max: ThresholdSettingsService.moistureRangeMax,
+            divisions: 100,
+            unit: '%',
+            onChanged: onMoistureChanged,
+            onChangeEnd: onMoistureChangeEnd,
+          ),
+          _divider(),
+          SettingsSliderRow(
+            title: 'Light Intensity',
+            values: lightRange,
+            min: ThresholdSettingsService.lightRangeMin,
+            max: ThresholdSettingsService.lightRangeMax,
+            divisions: 100,
+            unit: ' lux',
+            activeColor: AppColors.accentYellow,
+            onChanged: onLightChanged,
+            onChangeEnd: onLightChangeEnd,
           ),
         ],
       ),
     );
   }
+
+  Widget _divider() => Padding(
+    padding: EdgeInsets.symmetric(vertical: AppSpacing.md.h),
+    child: const Divider(color: AppColors.borderLight, height: 1),
+  );
 }

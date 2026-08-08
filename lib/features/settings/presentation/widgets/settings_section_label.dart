@@ -14,9 +14,9 @@ class SettingsSectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle style =
         (context.textTheme.labelMedium ?? AppTextStyles.labelMedium).copyWith(
-      color: AppColors.textTertiary,
-      letterSpacing: 1.2.r,
-    );
+          color: AppColors.textTertiary,
+          letterSpacing: 1.2.r,
+        );
 
     return Text(label.toUpperCase(), style: style);
   }

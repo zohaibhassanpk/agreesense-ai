@@ -9,9 +9,13 @@ import '../../domain/entities/alert_section.dart';
 import '../../domain/repositories/alerts_repository.dart';
 
 class AlertsProvider extends ChangeNotifier {
-  AlertsProvider({required this.repository});
+  AlertsProvider({
+    required this.repository,
+    this.relativeTimeRefreshInterval = const Duration(minutes: 1),
+  });
 
   final AlertsRepository repository;
+  final Duration relativeTimeRefreshInterval;
   final LoggerService _logger = LoggerService(className: 'AlertsProvider');
 
   static const Duration _firstLoadTimeout = Duration(seconds: 20);
@@ -22,6 +26,7 @@ class AlertsProvider extends ChangeNotifier {
   AlertFilterType _selectedFilter = AlertFilterType.all;
   List<AlertFilter> _filters = const [];
   StreamSubscription<List<AlertSection>>? _subscription;
+  Timer? _relativeTimeTimer;
   Completer<void>? _firstEventCompleter;
   bool _disposed = false;
 
@@ -41,6 +46,7 @@ class AlertsProvider extends ChangeNotifier {
     }
     _isLoading = true;
     _errorMessage = null;
+    _startRelativeTimeUpdates();
     notifyListeners();
 
     _completePendingLoad();
@@ -123,7 +129,7 @@ class AlertsProvider extends ChangeNotifier {
     final AlertSeverity severity = switch (filterType) {
       AlertFilterType.critical => AlertSeverity.critical,
       AlertFilterType.warnings => AlertSeverity.warning,
-      AlertFilterType.all => AlertSeverity.info,
+      AlertFilterType.all => throw StateError('All alerts are not filtered.'),
     };
 
     return _sections
@@ -143,15 +149,23 @@ class AlertsProvider extends ChangeNotifier {
 
   List<AlertFilter> _buildFilters(List<AlertSection> sections) {
     final counts = _countBySeverity(sections);
+    final int allCount = sections.fold<int>(
+      0,
+      (int total, AlertSection section) => total + section.items.length,
+    );
     final int criticalCount = counts[AlertSeverity.critical] ?? 0;
-    final String criticalLabel = criticalCount > 0
-        ? 'Critical ($criticalCount)'
-        : 'Critical';
+    final int warningCount = counts[AlertSeverity.warning] ?? 0;
 
     return [
-      const AlertFilter(type: AlertFilterType.all, label: 'All'),
-      AlertFilter(type: AlertFilterType.critical, label: criticalLabel),
-      const AlertFilter(type: AlertFilterType.warnings, label: 'Warnings'),
+      AlertFilter(type: AlertFilterType.all, label: 'All ($allCount)'),
+      AlertFilter(
+        type: AlertFilterType.warnings,
+        label: 'Warning ($warningCount)',
+      ),
+      AlertFilter(
+        type: AlertFilterType.critical,
+        label: 'Critical ($criticalCount)',
+      ),
     ];
   }
 
@@ -159,7 +173,6 @@ class AlertsProvider extends ChangeNotifier {
     final Map<AlertSeverity, int> counts = {
       AlertSeverity.critical: 0,
       AlertSeverity.warning: 0,
-      AlertSeverity.info: 0,
     };
 
     for (final section in sections) {
@@ -178,9 +191,18 @@ class AlertsProvider extends ChangeNotifier {
     }
   }
 
+  void _startRelativeTimeUpdates() {
+    _relativeTimeTimer ??= Timer.periodic(relativeTimeRefreshInterval, (_) {
+      if (!_disposed && _sections.isNotEmpty) {
+        notifyListeners();
+      }
+    });
+  }
+
   @override
   void dispose() {
     _disposed = true;
+    _relativeTimeTimer?.cancel();
     _completePendingLoad();
     _subscription?.cancel();
     super.dispose();

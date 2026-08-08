@@ -72,7 +72,7 @@ class HomeHeader extends StatelessWidget {
           SizedBox(height: AppSpacing.xl.h),
           HomeConnectionPill(
             label: dashboard.connectionStatus,
-            isOnline: dashboard.deviceOnline,
+            status: dashboard.deviceStatus,
           ),
         ],
       ),
@@ -152,17 +152,21 @@ class HomeConnectionPill extends StatelessWidget {
   const HomeConnectionPill({
     super.key,
     required this.label,
-    this.isOnline = true,
+    this.status = DeviceStatus.unknown,
   });
 
   final String label;
-  final bool isOnline;
+  final DeviceStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final Color statusColor = isOnline
-        ? AppColors.primary
-        : AppColors.accentBrown;
+    final bool isChecking =
+        status == DeviceStatus.unknown || status == DeviceStatus.loading;
+    final Color statusColor = switch (status) {
+      DeviceStatus.online => AppColors.primary,
+      DeviceStatus.offline || DeviceStatus.error => AppColors.accentBrown,
+      DeviceStatus.unknown || DeviceStatus.loading => AppColors.textTertiary,
+    };
     final TextStyle labelStyle =
         (context.textTheme.labelLarge ?? AppTextStyles.labelLarge).copyWith(
           color: statusColor,
@@ -183,19 +187,24 @@ class HomeConnectionPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: AppSpacing.sm.w,
-                height: AppSpacing.sm.w,
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  shape: BoxShape.circle,
-                ),
+          if (isChecking)
+            SizedBox(
+              width: AppSpacing.md.w,
+              height: AppSpacing.md.w,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: statusColor,
               ),
-            ],
-          ),
+            )
+          else
+            Container(
+              width: AppSpacing.sm.w,
+              height: AppSpacing.sm.w,
+              decoration: BoxDecoration(
+                color: statusColor,
+                shape: BoxShape.circle,
+              ),
+            ),
           SizedBox(width: AppSpacing.md.w),
           Text(label, style: labelStyle),
         ],

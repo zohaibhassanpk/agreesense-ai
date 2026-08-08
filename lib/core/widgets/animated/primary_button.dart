@@ -29,7 +29,7 @@ class PrimaryButton extends StatelessWidget {
     this.foregroundColor,
     this.isLoading = false,
     this.fitToContent = false,
-    required this.borderRadius
+    required this.borderRadius,
   });
 
   @override
@@ -47,7 +47,9 @@ class PrimaryButton extends StatelessWidget {
               ? EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h)
               : null,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(borderRadius.r), // Border radius here
+            borderRadius: BorderRadius.circular(
+              borderRadius.r,
+            ), // Border radius here
           ),
         ),
         child: isLoading

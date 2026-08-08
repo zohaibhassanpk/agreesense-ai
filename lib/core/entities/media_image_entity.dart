@@ -13,10 +13,7 @@ class MediaImageEntity {
     this.caption = '',
   });
 
-  const MediaImageEntity.empty()
-      : url = '',
-        altText = '',
-        caption = '';
+  const MediaImageEntity.empty() : url = '', altText = '', caption = '';
 
   bool get isEmpty => url.isEmpty;
   bool get isNotEmpty => url.isNotEmpty;

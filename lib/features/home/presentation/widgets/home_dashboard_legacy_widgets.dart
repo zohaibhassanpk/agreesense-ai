@@ -16,9 +16,9 @@ class HomeDashboardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle welcomeStyle =
         (context.textTheme.labelMedium ?? AppTextStyles.labelMedium).copyWith(
-      color: AppColors.textTertiary,
-      letterSpacing: 0,
-    );
+          color: AppColors.textTertiary,
+          letterSpacing: 0,
+        );
     final TextStyle titleStyle =
         context.textTheme.headlineLarge ?? AppTextStyles.headingLarge;
 
@@ -103,10 +103,10 @@ class DeviceConnectionPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle textStyle =
         (context.textTheme.labelLarge ?? AppTextStyles.labelLarge).copyWith(
-      color: AppColors.primary,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    );
+          color: AppColors.primary,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0,
+        );
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -146,8 +146,8 @@ class SmartActionCard extends StatelessWidget {
         context.textTheme.titleLarge ?? AppTextStyles.titleLarge;
     final TextStyle bodyStyle =
         (context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium).copyWith(
-      color: AppColors.textSecondary,
-    );
+          color: AppColors.textSecondary,
+        );
 
     return Container(
       padding: EdgeInsets.all(AppSpacing.x2l.r),
@@ -187,7 +187,8 @@ class SmartActionCard extends StatelessWidget {
                     style: bodyStyle,
                     children: [
                       const TextSpan(
-                        text: 'Soil is drying faster than usual.\n'
+                        text:
+                            'Soil is drying faster than usual.\n'
                             'Irrigation needed in approx ',
                       ),
                       TextSpan(
@@ -218,8 +219,8 @@ class LiveSensorsHeader extends StatelessWidget {
         context.textTheme.titleLarge ?? AppTextStyles.titleLarge;
     final TextStyle timeStyle =
         (context.textTheme.bodySmall ?? AppTextStyles.bodySmall).copyWith(
-      color: AppColors.textTertiary,
-    );
+          color: AppColors.textTertiary,
+        );
 
     return Row(
       children: [
@@ -252,17 +253,17 @@ class SensorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle labelStyle =
         (context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium).copyWith(
-      color: AppColors.textSecondary,
-      fontWeight: FontWeight.w500,
-    );
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w500,
+        );
     final TextStyle valueStyle =
         (context.textTheme.displayMedium ?? AppTextStyles.displayMedium)
             .copyWith(letterSpacing: 0);
     final TextStyle unitStyle =
         (context.textTheme.titleLarge ?? AppTextStyles.titleLarge).copyWith(
-      color: AppColors.textSecondary,
-      fontWeight: FontWeight.w500,
-    );
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w500,
+        );
 
     return Container(
       height: (AppSpacing.x2l * 6).h,
@@ -347,9 +348,9 @@ class DashboardActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle labelStyle =
         (context.textTheme.titleMedium ?? AppTextStyles.titleMedium).copyWith(
-      color: AppColors.darkGreen,
-      fontWeight: FontWeight.w500,
-    );
+          color: AppColors.darkGreen,
+          fontWeight: FontWeight.w500,
+        );
 
     return Expanded(
       child: OutlinedButton(

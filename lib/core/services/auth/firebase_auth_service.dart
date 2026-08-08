@@ -5,7 +5,7 @@ import '../logger/logger_service.dart';
 
 class FirebaseAuthService {
   FirebaseAuthService({FirebaseAuth? auth})
-      : _auth = auth ?? FirebaseAuth.instance;
+    : _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseAuth _auth;
   final LoggerService _logger = LoggerService(className: 'FirebaseAuthService');
@@ -38,7 +38,11 @@ class FirebaseAuthService {
     try {
       await _auth.signOut();
     } catch (error, stackTrace) {
-      _logger.error('Failed to sign out.', error: error, stackTrace: stackTrace);
+      _logger.error(
+        'Failed to sign out.',
+        error: error,
+        stackTrace: stackTrace,
+      );
       rethrow;
     }
   }

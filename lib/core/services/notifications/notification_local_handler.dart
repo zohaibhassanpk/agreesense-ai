@@ -13,6 +13,9 @@ class NotificationLocalHandler {
   );
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
+  int _nextNotificationId = DateTime.now().millisecondsSinceEpoch.remainder(
+    0x7fffffff,
+  );
 
   /// Initialize local notifications and create channels.
   Future<void> initialize() async {
@@ -20,9 +23,9 @@ class NotificationLocalHandler {
       '@mipmap/ic_launcher',
     );
     const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
 
     await _plugin.initialize(
@@ -78,7 +81,7 @@ class NotificationLocalHandler {
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
-      icon: '@mipmap/ic_launcher',
+      icon: 'ic_stat_notification',
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -88,7 +91,7 @@ class NotificationLocalHandler {
     );
 
     await _plugin.show(
-      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      id: _takeNotificationId(),
       title: title,
       body: body,
       notificationDetails: const NotificationDetails(
@@ -97,6 +100,12 @@ class NotificationLocalHandler {
       ),
       payload: payload,
     );
+  }
+
+  int _takeNotificationId() {
+    final int id = _nextNotificationId;
+    _nextNotificationId = (_nextNotificationId + 1).remainder(0x7fffffff);
+    return id;
   }
 
   void _onTap(NotificationResponse response) {

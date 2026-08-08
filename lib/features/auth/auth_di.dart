@@ -33,18 +33,14 @@ class AuthDI {
     di.registerLazySingleton<SignInWithGoogle>(
       () => SignInWithGoogle(di<AuthRepository>()),
     );
-    di.registerLazySingleton<SignOut>(
-      () => SignOut(di<AuthRepository>()),
-    );
+    di.registerLazySingleton<SignOut>(() => SignOut(di<AuthRepository>()));
     di.registerLazySingleton<GetCurrentUser>(
       () => GetCurrentUser(di<AuthRepository>()),
     );
 
     // Providers
     di.registerFactory<AuthLoginProvider>(
-      () => AuthLoginProvider(
-        signInWithGoogle: di<SignInWithGoogle>(),
-      ),
+      () => AuthLoginProvider(signInWithGoogle: di<SignInWithGoogle>()),
     );
   }
 }

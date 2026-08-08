@@ -1,5 +1,9 @@
 import 'package:get_it/get_it.dart';
 
+import '../../core/providers/auth_session_provider.dart';
+import '../../core/services/realtime_db/sensor_database_service.dart';
+import '../../core/services/local_storage/local_storage_service.dart';
+import '../../core/services/settings/threshold_settings_service.dart';
 import 'data/datasources/home_local_datasource.dart';
 import 'data/datasources/home_remote_datasource.dart';
 import 'data/repositories/home_repository_impl.dart';
@@ -14,9 +18,10 @@ class HomeDI {
 
     di.registerLazySingleton<HomeRemoteDataSource>(
       () => HomeRemoteDataSourceImpl(
-        sensorDatabase: di(),
-        authSessionProvider: di(),
-        thresholdSettings: di(),
+        sensorDatabase: di<SensorDatabaseService>(),
+        authSessionProvider: di<AuthSessionProvider>(),
+        thresholdSettings: di<ThresholdSettingsService>(),
+        storage: di<LocalStorageService>(),
       ),
     );
 

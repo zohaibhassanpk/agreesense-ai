@@ -4,7 +4,8 @@ import 'package:agrisenseaiapp/features/analytics/domain/entities/analytics_metr
 import 'package:agrisenseaiapp/features/analytics/domain/entities/analytics_metric_series.dart';
 import 'package:agrisenseaiapp/features/analytics/domain/entities/analytics_period_data.dart';
 import 'package:agrisenseaiapp/features/analytics/domain/entities/analytics_time_range.dart';
-import 'package:agrisenseaiapp/features/analytics/presentation/widgets/analytics_light_intensity_card.dart';
+import 'package:agrisenseaiapp/features/analytics/presentation/widgets/analytics_metric_average_card.dart';
+import 'package:agrisenseaiapp/features/analytics/presentation/widgets/analytics_metric_chart_card.dart';
 import 'package:agrisenseaiapp/features/analytics/presentation/widgets/analytics_range_tabs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,71 +77,86 @@ void main() {
     expect(selected, AnalyticsTimeRange.week);
   });
 
-  testWidgets('light intensity card renders its trend and four stats', (
+  testWidgets('combined chart includes the light intensity line', (
     tester,
   ) async {
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    tester.view.devicePixelRatio = 1;
-
-    const series = AnalyticsMetricSeries(
-      label: 'Light Intensity',
-      icon: AppAssets.sun,
-      colorKey: 'yellow',
-      points: [
-        AnalyticsChartPoint(x: 0, y: 0.8),
-        AnalyticsChartPoint(x: 1, y: 0.3),
-      ],
-    );
-    const stats = [
-      AnalyticsMetricAverage(
-        label: 'Average',
-        value: '50,000 lux',
-        icon: AppAssets.sun,
-        colorKey: 'yellow',
-      ),
-      AnalyticsMetricAverage(
-        label: 'Minimum',
-        value: '20,000 lux',
-        icon: AppAssets.sun,
-        colorKey: 'yellow',
-      ),
-      AnalyticsMetricAverage(
-        label: 'Maximum',
-        value: '80,000 lux',
-        icon: AppAssets.sun,
-        colorKey: 'yellow',
-      ),
-      AnalyticsMetricAverage(
-        label: 'Latest Reading',
-        value: '62,000 lux',
-        icon: AppAssets.sun,
-        colorKey: 'yellow',
-      ),
+    const points = <AnalyticsChartPoint>[
+      AnalyticsChartPoint(x: 0, y: 0.8),
+      AnalyticsChartPoint(x: 1, y: 0.3),
     ];
+    const period = AnalyticsPeriodData(
+      range: AnalyticsTimeRange.week,
+      tabLabel: 'Week',
+      axisLabels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+      averagesTitle: 'Averages (Week)',
+      metricSeries: [
+        AnalyticsMetricSeries(
+          label: 'Moisture',
+          icon: AppAssets.drop,
+          colorKey: 'blue',
+          points: points,
+        ),
+        AnalyticsMetricSeries(
+          label: 'Temp',
+          icon: AppAssets.temprature,
+          colorKey: 'red',
+          points: points,
+        ),
+        AnalyticsMetricSeries(
+          label: 'Humidity',
+          icon: AppAssets.cloud,
+          colorKey: 'green',
+          points: points,
+        ),
+        AnalyticsMetricSeries(
+          label: 'Light',
+          icon: AppAssets.sun,
+          colorKey: 'yellow',
+          points: points,
+        ),
+      ],
+      averages: [],
+    );
 
-    for (final size in [const Size(320, 568), const Size(375, 812)]) {
-      tester.view.physicalSize = size;
-      await tester.pumpWidget(
-        buildResponsiveTestApp(
-          const SingleChildScrollView(
-            child: AnalyticsLightIntensityCard(
-              series: series,
-              stats: stats,
-              axisLabels: ['00:00', '08:00', '16:00', 'Now'],
-            ),
+    await tester.pumpWidget(
+      buildResponsiveTestApp(
+        const SingleChildScrollView(
+          child: AnalyticsMetricChartCard(
+            chartTitle: 'Combined Metrics',
+            period: period,
           ),
         ),
-      );
+      ),
+    );
 
-      expect(tester.takeException(), isNull);
-    }
-
-    expect(find.text('Light Intensity Trend'), findsOneWidget);
-    expect(find.text('Average'), findsOneWidget);
-    expect(find.text('Minimum'), findsOneWidget);
-    expect(find.text('Maximum'), findsOneWidget);
-    expect(find.text('Latest Reading'), findsOneWidget);
+    expect(find.text('Combined Metrics'), findsOneWidget);
+    expect(find.text('Light'), findsOneWidget);
+    expect(find.text('Light Intensity Trend'), findsNothing);
     expect(find.byType(CustomPaint), findsWidgets);
+  });
+
+  testWidgets('light summary uses the standard metric summary card', (
+    tester,
+  ) async {
+    const light = AnalyticsMetricAverage(
+      label: 'Light Intensity',
+      value: '52,100 lux',
+      icon: AppAssets.sun,
+      colorKey: 'yellow',
+    );
+
+    await tester.pumpWidget(
+      buildResponsiveTestApp(
+        const AnalyticsMetricAverageCard(
+          metric: light,
+          isWide: false,
+          showIcon: true,
+          centerContent: false,
+        ),
+      ),
+    );
+
+    expect(find.text('Light Intensity'), findsOneWidget);
+    expect(find.text('52,100 lux'), findsOneWidget);
   });
 }

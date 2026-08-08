@@ -57,9 +57,7 @@ class AlertsHeader extends StatelessWidget {
           SizedBox(height: AppSpacing.lg.h),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _buildFilterChips(context),
-            ),
+            child: Row(children: _buildFilterChips(context)),
           ),
         ],
       ),

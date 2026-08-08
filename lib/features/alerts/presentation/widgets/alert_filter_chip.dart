@@ -21,17 +21,18 @@ class AlertFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color backgroundColor =
-        isSelected ? AppColors.darkGreen : AppColors.surfaceMuted;
+    final Color backgroundColor = isSelected
+        ? AppColors.darkGreen
+        : AppColors.surfaceMuted;
     final Color textColor = isSelected
         ? AppColors.surface
         : AppColors.textSecondary;
     final TextStyle textStyle =
         (context.textTheme.labelMedium ?? AppTextStyles.labelMedium).copyWith(
-      color: textColor,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    );
+          color: textColor,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0,
+        );
 
     return InkWell(
       onTap: onTap,

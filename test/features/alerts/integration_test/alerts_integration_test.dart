@@ -1,6 +1,5 @@
-import 'package:agrisenseaiapp/features/alerts/data/datasources/alerts_local_datasource.dart';
-import 'package:agrisenseaiapp/features/alerts/data/repositories/alerts_repository_impl.dart';
 import 'package:agrisenseaiapp/features/alerts/domain/entities/alert_filter.dart';
+import 'package:agrisenseaiapp/features/alerts/domain/entities/alert_item.dart';
 import 'package:agrisenseaiapp/features/alerts/domain/entities/alert_section.dart';
 import 'package:agrisenseaiapp/features/alerts/domain/repositories/alerts_repository.dart';
 import 'package:agrisenseaiapp/features/alerts/presentation/providers/alerts_provider.dart';
@@ -18,15 +17,48 @@ class _FailingAlertsRepository implements AlertsRepository {
       Stream<List<AlertSection>>.error(Exception('alerts fail'));
 }
 
+class _CategorizedAlertsRepository implements AlertsRepository {
+  _CategorizedAlertsRepository() {
+    final DateTime now = DateTime.now();
+    sections = <AlertSection>[
+      AlertSection(
+        label: 'Today',
+        items: <AlertItem>[
+          AlertItem(
+            title: 'Warning: High Temperature',
+            message: 'Temperature crossed its warning threshold.',
+            timestamp: now,
+            severity: AlertSeverity.warning,
+            icon: 'warning.svg',
+          ),
+          AlertItem(
+            title: 'Critical: High Temperature',
+            message: 'Temperature crossed its critical threshold.',
+            timestamp: now,
+            severity: AlertSeverity.critical,
+            icon: 'critical.svg',
+          ),
+        ],
+      ),
+    ];
+  }
+
+  late final List<AlertSection> sections;
+
+  @override
+  Future<List<AlertSection>> getAlertSections() async => sections;
+
+  @override
+  Stream<List<AlertSection>> watchAlertSections() => Stream.value(sections);
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('Alerts Integration', () {
     testWidgets('load and filter alerts', (tester) async {
       final provider = AlertsProvider(
-        repository: AlertsRepositoryImpl(
-          localDataSource: AlertsLocalDataSourceImpl(),
-        ),
+        repository: _CategorizedAlertsRepository(),
       );
 
       await provider.loadAlerts();
@@ -34,6 +66,11 @@ void main() {
 
       expect(provider.visibleSections.length, 1);
       expect(provider.visibleSections.first.items.length, 1);
+      expect(
+        provider.visibleSections.first.items.single.severity,
+        AlertSeverity.warning,
+      );
+      provider.dispose();
     });
 
     testWidgets('load failure sets user-facing error', (tester) async {
@@ -42,6 +79,7 @@ void main() {
       await provider.loadAlerts();
       expect(provider.sections, isEmpty);
       expect(provider.errorMessage, 'Unable to load alerts.');
+      provider.dispose();
     });
   });
 }

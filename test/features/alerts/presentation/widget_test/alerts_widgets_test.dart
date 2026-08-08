@@ -26,8 +26,9 @@ void main() {
     final alert = AlertItem(
       title: 'Low Soil Moisture',
       message: 'Moisture dropped below threshold.',
-      timeLabel: '1h ago',
-      timestamp: DateTime(2026, 7, 13, 12),
+      recommendedAction:
+          'Inspect tobacco roots and the irrigation system before watering.',
+      timestamp: DateTime.now().subtract(const Duration(hours: 1)),
       severity: AlertSeverity.warning,
       icon: 'assets/svgs/drop.svg',
     );
@@ -35,6 +36,9 @@ void main() {
     await tester.pumpWidget(buildResponsiveTestApp(AlertCard(alert: alert)));
 
     expect(find.text('Low Soil Moisture'), findsOneWidget);
-    expect(find.text('1h ago'), findsOneWidget);
+    expect(find.text('Severity: Warning'), findsOneWidget);
+    expect(find.text('Recommended action'), findsOneWidget);
+    expect(find.textContaining('Inspect tobacco roots'), findsOneWidget);
+    expect(find.text('1 hour ago'), findsOneWidget);
   });
 }

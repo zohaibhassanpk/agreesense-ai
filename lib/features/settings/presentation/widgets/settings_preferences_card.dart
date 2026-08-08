@@ -25,10 +25,10 @@ class SettingsPreferencesCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle titleStyle =
         (context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium).copyWith(
-      color: AppColors.textPrimary,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    );
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0,
+        );
 
     return Container(
       decoration: BoxDecoration(
@@ -52,9 +52,7 @@ class SettingsPreferencesCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Expanded(
-                  child: Text('Push Notifications', style: titleStyle),
-                ),
+                Expanded(child: Text('Push Notifications', style: titleStyle)),
                 SettingsToggle(
                   value: pushNotificationsEnabled,
                   onChanged: onToggleNotifications,
@@ -65,10 +63,7 @@ class SettingsPreferencesCard extends StatelessWidget {
           Divider(height: 1, color: AppColors.borderLight),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg.w),
-            child: SettingsNavigationRow(
-              title: 'Language',
-              value: language,
-            ),
+            child: SettingsNavigationRow(title: 'Language', value: language),
           ),
         ],
       ),

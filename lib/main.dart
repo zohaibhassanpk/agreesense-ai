@@ -5,10 +5,13 @@ import 'core/utils/system_utils.dart';
 import 'package:flutter/material.dart';
 import 'core/config/responsive_config.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'core/services/logger/logger_service.dart';
+import 'core/services/alerts/alerts_store.dart';
 import 'core/services/notifications/notification_local_handler.dart';
-import 'core/services/notifications/sensor_alert_monitor.dart';
+import 'core/services/notifications/notification_background_handler.dart';
+import 'core/services/notifications/notification_push_service.dart';
 import 'core/services/settings/threshold_settings_service.dart';
 
 void main() async {
@@ -20,6 +23,7 @@ void main() async {
 
   // Firebase initialization
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   // Initialize dependencies
   await initializeDependencies();
@@ -35,10 +39,12 @@ void main() async {
     );
   }
 
-  // Local threshold-crossing notifications
+  // Cloud Functions own threshold evaluation and FCM owns background and
+  // terminated delivery. The local plugin only presents foreground messages.
   await di<NotificationLocalHandler>().initialize();
   await Permission.notification.request();
-  await di<SensorAlertMonitor>().start();
+  await di<AlertsStore>().load();
+  await di<NotificationPushService>().start();
 
   // Set system styles
   SystemUtils.setDefaultSystemUI();

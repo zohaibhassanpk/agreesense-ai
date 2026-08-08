@@ -1,4 +1,5 @@
 import '../../../../core/constants/app_assets.dart';
+import '../../domain/entities/home_dashboard.dart';
 import '../models/home_dashboard_model.dart';
 import '../models/sensor_reading_model.dart';
 import '../models/smart_action_model.dart';
@@ -22,6 +23,7 @@ class HomeLocalDataSourceImpl implements HomeLocalDataSource {
         highlight: '2 hours.',
       ),
       updatedLabel: 'Updated 2m ago',
+      deviceStatus: DeviceStatus.online,
       sensors: [
         SensorReadingModel(
           label: 'Soil Moisture',

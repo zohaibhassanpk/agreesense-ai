@@ -8,9 +8,7 @@ import 'injection_container.dart';
 
 class AgriSenseAIApp extends StatelessWidget {
   AgriSenseAIApp({super.key})
-      : _router = AppRouter(
-          authSessionProvider: di<AuthSessionProvider>(),
-        );
+    : _router = AppRouter(authSessionProvider: di<AuthSessionProvider>());
 
   final AppRouter _router;
 

@@ -10,6 +10,7 @@ import '../core/services/image_picker/image_picker_service.dart';
 import '../core/services/local_storage/local_storage_service.dart';
 import '../core/services/network/network_service.dart';
 import '../core/services/notifications/notification_local_handler.dart';
+import '../core/services/notifications/notification_push_service.dart';
 import '../core/services/notifications/sensor_alert_monitor.dart';
 import '../core/services/realtime_db/sensor_database_service.dart';
 import '../core/services/settings/threshold_settings_service.dart';
@@ -17,11 +18,14 @@ import '../core/providers/auth_session_provider.dart';
 import '../features/alerts/alert_di.dart';
 import '../features/analytics/analytics_di.dart';
 import '../features/auth/auth_di.dart';
-import '../features/devices/devices_di.dart';
 import '../features/home/home_di.dart';
 import '../features/profile/profile_di.dart';
 import '../features/settings/settings_di.dart';
 import '../features/splash_onboarding/splash_onboarding_di.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_core/firebase_core.dart';
+import '../core/constants/sensor_db_constants.dart';
 
 final di = GetIt.instance;
 
@@ -65,6 +69,24 @@ Future<void> initializeDependencies() async {
     () => SensorDatabaseService(),
   );
 
+  // Remote push registration and foreground FCM presentation. Alert
+  // evaluation itself is performed by the Firebase Cloud Function.
+  di.registerLazySingleton<NotificationPushService>(
+    () => NotificationPushService(
+      messaging: FirebaseMessaging.instance,
+      database: FirebaseDatabase.instanceFor(
+        app: Firebase.app(),
+        databaseURL: SensorDbConstants.databaseUrl,
+      ),
+      authSession: di<AuthSessionProvider>(),
+      sensorDatabase: di<SensorDatabaseService>(),
+      thresholdSettings: di<ThresholdSettingsService>(),
+      localNotifications: di<NotificationLocalHandler>(),
+      localStorage: di<LocalStorageService>(),
+      alertsStore: di<AlertsStore>(),
+    ),
+  );
+
   // Threshold-crossing local notifications
   di.registerLazySingleton<SensorAlertMonitor>(
     () => SensorAlertMonitor(
@@ -73,6 +95,7 @@ Future<void> initializeDependencies() async {
       authSessionProvider: di<AuthSessionProvider>(),
       thresholdSettings: di<ThresholdSettingsService>(),
       alertsStore: di<AlertsStore>(),
+      storage: di<LocalStorageService>(),
     ),
   );
 
@@ -91,9 +114,6 @@ Future<void> initializeDependencies() async {
 
   // Analytics
   AnalyticsDI().init(di);
-
-  // Devices
-  DevicesDI().init(di);
 
   // Profile
   ProfileDI().init(di);

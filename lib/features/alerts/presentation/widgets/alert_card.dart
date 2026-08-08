@@ -7,14 +7,11 @@ import '../../../../core/theme/app_border_radius.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_style.dart';
+import '../../../../core/utils/relative_time.dart';
 import '../../domain/entities/alert_item.dart';
 
 class AlertCard extends StatelessWidget {
-  const AlertCard({
-    super.key,
-    required this.alert,
-    this.isMuted = false,
-  });
+  const AlertCard({super.key, required this.alert, this.isMuted = false});
 
   final AlertItem alert;
   final bool isMuted;
@@ -24,20 +21,23 @@ class AlertCard extends StatelessWidget {
     final Color accentColor = _resolveAccentColor(alert.severity);
     final TextStyle titleStyle =
         (context.textTheme.titleMedium ?? AppTextStyles.titleMedium).copyWith(
-      color: AppColors.textPrimary,
-      letterSpacing: 0,
-    );
+          color: AppColors.textPrimary,
+          letterSpacing: 0,
+        );
     final TextStyle timeStyle =
         (context.textTheme.bodySmall ?? AppTextStyles.bodySmall).copyWith(
-      color: AppColors.textTertiary,
-    );
+          color: AppColors.textTertiary,
+        );
     final TextStyle bodyStyle =
         (context.textTheme.bodySmall ?? AppTextStyles.bodySmall).copyWith(
-      color: AppColors.textSecondary,
+          color: AppColors.textSecondary,
+        );
+    final TextStyle severityStyle = bodyStyle.copyWith(
+      color: accentColor,
+      fontWeight: FontWeight.w600,
     );
 
-    final double iconContainerSize =
-        (AppSpacing.x2l + AppSpacing.lg).w;
+    final double iconContainerSize = (AppSpacing.x2l + AppSpacing.lg).w;
 
     final Widget card = Container(
       padding: EdgeInsets.all(AppSpacing.lg.r),
@@ -68,10 +68,7 @@ class AlertCard extends StatelessWidget {
                 alert.icon,
                 width: AppSpacing.xl.w,
                 height: AppSpacing.xl.w,
-                colorFilter: ColorFilter.mode(
-                  accentColor,
-                  BlendMode.srcIn,
-                ),
+                colorFilter: ColorFilter.mode(accentColor, BlendMode.srcIn),
               ),
             ),
           ),
@@ -85,11 +82,28 @@ class AlertCard extends StatelessWidget {
                   children: [
                     Expanded(child: Text(alert.title, style: titleStyle)),
                     SizedBox(width: AppSpacing.sm.w),
-                    Text(alert.timeLabel, style: timeStyle),
+                    Text(relativeTime(alert.timestamp), style: timeStyle),
                   ],
                 ),
                 SizedBox(height: (AppSpacing.sm / 2).h),
+                Text(
+                  'Severity: ${alert.severity == AlertSeverity.critical ? 'Critical' : 'Warning'}',
+                  style: severityStyle,
+                ),
+                SizedBox(height: (AppSpacing.sm / 2).h),
                 Text(alert.message, style: bodyStyle),
+                if (alert.recommendedAction.isNotEmpty) ...[
+                  SizedBox(height: AppSpacing.sm.h),
+                  Text(
+                    'Recommended action',
+                    style: bodyStyle.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: (AppSpacing.sm / 2).h),
+                  Text(alert.recommendedAction, style: bodyStyle),
+                ],
               ],
             ),
           ),
@@ -108,7 +122,6 @@ class AlertCard extends StatelessWidget {
     return switch (severity) {
       AlertSeverity.critical => AppColors.error,
       AlertSeverity.warning => AppColors.accentYellow,
-      AlertSeverity.info => AppColors.primary,
     };
   }
 

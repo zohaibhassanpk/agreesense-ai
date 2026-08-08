@@ -25,7 +25,7 @@ class ImageInfoEntity {
     this.width,
     this.height,
   }) : sizeInKb = sizeInBytes / 1024,
-        sizeInMb = sizeInBytes / (1024 * 1024);
+       sizeInMb = sizeInBytes / (1024 * 1024);
 
   /// Get formatted file size as a readable string
   String get formattedSize {

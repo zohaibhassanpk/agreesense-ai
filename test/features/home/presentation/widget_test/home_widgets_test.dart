@@ -1,6 +1,7 @@
 import 'package:agrisenseaiapp/features/home/domain/entities/sensor_reading.dart';
 import 'package:agrisenseaiapp/features/home/domain/entities/smart_action.dart';
 import 'package:agrisenseaiapp/features/home/presentation/widgets/home_dashboard_widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../test_widget_harness.dart';
@@ -39,5 +40,27 @@ void main() {
 
     expect(find.text('Temperature'), findsOneWidget);
     expect(find.text('24'), findsOneWidget);
+  });
+
+  testWidgets('HomeActionButton is disabled without an online action', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      buildResponsiveTestApp(
+        const Row(
+          children: [
+            HomeActionButton(
+              label: 'Pump Control',
+              icon: 'assets/svgs/pump.svg',
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final OutlinedButton button = tester.widget<OutlinedButton>(
+      find.byType(OutlinedButton),
+    );
+    expect(button.onPressed, isNull);
   });
 }

@@ -27,16 +27,16 @@ class SettingsNavigationRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle titleStyle =
         (context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium).copyWith(
-      color: AppColors.textPrimary,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    );
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0,
+        );
     final TextStyle valueStyle =
         (context.textTheme.labelMedium ?? AppTextStyles.labelMedium).copyWith(
-      color: AppColors.textPrimary,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    );
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0,
+        );
 
     return InkWell(
       onTap: onTap,

@@ -55,6 +55,8 @@ class AnalyticsMetricChartCard extends StatelessWidget {
           AnalyticsLineChart(
             series: period.metricSeries,
             axisLabels: period.axisLabels,
+            yAxisLabels: period.yAxisLabels,
+            lightYAxisLabels: period.lightYAxisLabels,
           ),
         ],
       ),

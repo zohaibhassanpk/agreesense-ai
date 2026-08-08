@@ -106,12 +106,14 @@ class _HomeDashboardBody extends StatelessWidget {
                 label: 'Pump Control',
                 icon: AppAssets.pump,
                 isActive: dashboard.pumpOn,
-                onPressed: () {
-                  HomePumpControlSheet.show(
-                    context: context,
-                    provider: provider,
-                  );
-                },
+                onPressed: dashboard.deviceOnline
+                    ? () {
+                        HomePumpControlSheet.show(
+                          context: context,
+                          provider: provider,
+                        );
+                      }
+                    : null,
               ),
             ],
           ),

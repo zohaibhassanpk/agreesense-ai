@@ -1,11 +1,11 @@
 {
-  "sensor": {
-    "controls": {
-      "pump_status": false
-    }
-  },
   "users": {
     "zohaibhassanpk2": {
+      "device": {
+        "controls": {
+          "pumpStatus": false
+        }
+      },
       "farms": {
         "farm_01": {
           "fields": {

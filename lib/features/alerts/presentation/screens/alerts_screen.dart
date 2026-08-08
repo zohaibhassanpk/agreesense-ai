@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../app/injection_container.dart';
+import '../../../../core/services/alerts/alerts_store.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -13,8 +14,33 @@ import '../widgets/alert_card.dart';
 import '../widgets/alert_section_label.dart';
 import '../widgets/alerts_header.dart';
 
-class AlertsScreen extends StatelessWidget {
+class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});
+
+  @override
+  State<AlertsScreen> createState() => _AlertsScreenState();
+}
+
+class _AlertsScreenState extends State<AlertsScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      di<AlertsStore>().reload();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,10 +119,7 @@ class _AlertsView extends StatelessWidget {
         if (index == cursor) {
           return Padding(
             padding: EdgeInsets.only(bottom: AppSpacing.lg.h),
-            child: AlertCard(
-              alert: alert,
-              isMuted: section.isHistorical,
-            ),
+            child: AlertCard(alert: alert, isMuted: section.isHistorical),
           );
         }
         cursor += 1;
@@ -116,8 +139,8 @@ class _AlertsErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle style =
         (context.textTheme.bodyMedium ?? AppTextStyles.bodyMedium).copyWith(
-      color: AppColors.textSecondary,
-    );
+          color: AppColors.textSecondary,
+        );
 
     return Center(
       child: Padding(

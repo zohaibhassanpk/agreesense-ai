@@ -2,10 +2,13 @@ import 'dart:async';
 
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/sensor_db_constants.dart';
+import '../../../../core/entities/app_user.dart';
 import '../../../../core/providers/auth_session_provider.dart';
 import '../../../../core/services/realtime_db/sensor_database_service.dart';
+import '../../../../core/services/local_storage/local_storage_service.dart';
 import '../../../../core/services/settings/threshold_settings_service.dart';
 import '../../../../core/utils/relative_time.dart';
+import '../../domain/entities/home_dashboard.dart';
 import '../models/home_dashboard_model.dart';
 import '../models/sensor_reading_model.dart';
 import '../models/smart_action_model.dart';
@@ -20,11 +23,13 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
     required this.sensorDatabase,
     required this.authSessionProvider,
     required this.thresholdSettings,
+    this.storage,
   });
 
-  final SensorDatabaseService sensorDatabase;
-  final AuthSessionProvider authSessionProvider;
+  final LiveSensorDatabase sensorDatabase;
+  final AuthSession authSessionProvider;
   final ThresholdSettingsService thresholdSettings;
+  final LocalStorageService? storage;
 
   /// Re-emission cadence that keeps the "Updated Xm ago" label and the
   /// staleness-based online state fresh between database events.
@@ -36,53 +41,228 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
     StreamSubscription<FieldCurrentReading?>? currentSubscription;
     StreamSubscription<bool>? pumpSubscription;
     Timer? refreshTimer;
-    bool isCancelled = false;
+    bool isActive = false;
+    int bindingGeneration = 0;
+    String? boundAuthState;
 
     FieldCurrentReading? reading;
+    DateTime? lastConfirmedUpdatedAt;
     bool pumpOn = false;
-    bool hasReading = false;
+    DeviceStatus deviceStatus = DeviceStatus.unknown;
+    bool? lastCachedOnline;
 
     void emit() {
-      if (!hasReading || controller.isClosed) {
+      if (controller.isClosed) {
         return;
       }
-      controller.add(_mapDashboard(reading, pumpOn));
+      controller.add(
+        _mapDashboard(
+          reading,
+          pumpOn,
+          deviceStatus: deviceStatus,
+          lastConfirmedUpdatedAt: lastConfirmedUpdatedAt,
+        ),
+      );
+    }
+
+    void cacheStatus(AppUser user) {
+      final DateTime? updatedAt = lastConfirmedUpdatedAt;
+      final bool? isOnline = switch (deviceStatus) {
+        DeviceStatus.online => true,
+        DeviceStatus.offline => false,
+        _ => null,
+      };
+      if (updatedAt == null ||
+          isOnline == null ||
+          lastCachedOnline == isOnline) {
+        return;
+      }
+      lastCachedOnline = isOnline;
+      unawaited(
+        storage?.saveLastSensorStatus(
+              userId: user.uid,
+              updatedAt: updatedAt,
+              isOnline: isOnline,
+            ) ??
+            Future<void>.value(),
+      );
+    }
+
+    void acceptReading(FieldCurrentReading? value, AppUser user) {
+      if (value == null) {
+        return;
+      }
+      reading = value;
+      final DateTime? updatedAt = value.updatedAt;
+      if (updatedAt == null) {
+        emit();
+        return;
+      }
+      lastConfirmedUpdatedAt = updatedAt;
+      lastCachedOnline = null;
+      deviceStatus = SensorDbConstants.isReadingFresh(updatedAt)
+          ? DeviceStatus.online
+          : DeviceStatus.offline;
+      cacheStatus(user);
+      emit();
+    }
+
+    String? identityOf(AppUser? user) {
+      if (user == null) {
+        return null;
+      }
+      return '${user.uid}\u0000${user.email ?? ''}\u0000${user.phoneNumber ?? ''}';
+    }
+
+    Future<void> bindCurrentUser() async {
+      final int generation = ++bindingGeneration;
+      final AppUser? user = authSessionProvider.user;
+
+      await currentSubscription?.cancel();
+      currentSubscription = null;
+      await pumpSubscription?.cancel();
+      pumpSubscription = null;
+
+      if (!isActive || generation != bindingGeneration) {
+        return;
+      }
+
+      reading = null;
+      pumpOn = false;
+      lastConfirmedUpdatedAt = null;
+      lastCachedOnline = null;
+      deviceStatus = DeviceStatus.loading;
+      emit();
+
+      if (!authSessionProvider.isReady || user == null) {
+        return;
+      }
+
+      try {
+        final CachedSensorStatus? cached = await storage?.getLastSensorStatus(
+          userId: user.uid,
+        );
+        if (!isActive || generation != bindingGeneration) {
+          return;
+        }
+        lastConfirmedUpdatedAt = cached?.updatedAt;
+        lastCachedOnline = cached?.isOnline;
+        if (cached != null &&
+            SensorDbConstants.isReadingFresh(cached.updatedAt)) {
+          deviceStatus = DeviceStatus.online;
+          emit();
+        }
+      } catch (_) {
+        // A local cache failure must not classify the Firebase device offline.
+      }
+
+      pumpSubscription = sensorDatabase
+          .watchPumpStatus(userUid: user.uid)
+          .listen(
+            (bool value) {
+              if (!isActive || generation != bindingGeneration) {
+                return;
+              }
+              pumpOn = value;
+              emit();
+            },
+            onError: (Object error, StackTrace stackTrace) {
+              if (isActive &&
+                  generation == bindingGeneration &&
+                  !controller.isClosed) {
+                controller.addError(error, stackTrace);
+              }
+            },
+          );
+
+      try {
+        final String userKey = await sensorDatabase.resolveUserKey(user);
+        if (!isActive || generation != bindingGeneration) {
+          return;
+        }
+
+        try {
+          final FieldCurrentReading? initialReading = await sensorDatabase
+              .getCurrent(userKey: userKey);
+          if (!isActive || generation != bindingGeneration) {
+            return;
+          }
+          acceptReading(initialReading, user);
+        } catch (_) {
+          if (!isActive || generation != bindingGeneration) {
+            return;
+          }
+          deviceStatus = DeviceStatus.error;
+          emit();
+        }
+
+        currentSubscription = sensorDatabase
+            .watchCurrent(userKey: userKey)
+            .listen(
+              (FieldCurrentReading? value) {
+                if (!isActive || generation != bindingGeneration) {
+                  return;
+                }
+                acceptReading(value, user);
+              },
+              onError: (Object _, StackTrace _) {
+                if (isActive &&
+                    generation == bindingGeneration &&
+                    !controller.isClosed) {
+                  deviceStatus = DeviceStatus.error;
+                  emit();
+                }
+              },
+            );
+      } catch (_) {
+        if (isActive &&
+            generation == bindingGeneration &&
+            !controller.isClosed) {
+          deviceStatus = DeviceStatus.error;
+          emit();
+        }
+      }
+    }
+
+    void handleAuthChange() {
+      final String? identity = identityOf(authSessionProvider.user);
+      final String authState =
+          '${authSessionProvider.isReady}\u0000${identity ?? ''}';
+      if (authState == boundAuthState) {
+        return;
+      }
+      boundAuthState = authState;
+      unawaited(bindCurrentUser());
     }
 
     controller = StreamController<HomeDashboardModel>(
-      onListen: () async {
-        try {
-          final String userKey = await sensorDatabase.resolveUserKey(
-            authSessionProvider.user,
-          );
-          if (isCancelled || controller.isClosed) {
-            return;
+      onListen: () {
+        isActive = true;
+        authSessionProvider.addListener(handleAuthChange);
+        refreshTimer = Timer.periodic(_refreshInterval, (_) {
+          final AppUser? user = authSessionProvider.user;
+          final DateTime? updatedAt = lastConfirmedUpdatedAt;
+          if (user != null &&
+              updatedAt != null &&
+              (deviceStatus == DeviceStatus.online ||
+                  deviceStatus == DeviceStatus.offline)) {
+            final DeviceStatus refreshedStatus =
+                SensorDbConstants.isReadingFresh(updatedAt)
+                ? DeviceStatus.online
+                : DeviceStatus.offline;
+            if (refreshedStatus != deviceStatus) {
+              deviceStatus = refreshedStatus;
+              cacheStatus(user);
+            }
           }
-
-          currentSubscription = sensorDatabase
-              .watchCurrent(userKey: userKey)
-              .listen((FieldCurrentReading? value) {
-                reading = value;
-                hasReading = true;
-                emit();
-              }, onError: controller.addError);
-
-          pumpSubscription = sensorDatabase.watchPumpStatus().listen((
-            bool value,
-          ) {
-            pumpOn = value;
-            emit();
-          }, onError: controller.addError);
-
-          refreshTimer = Timer.periodic(_refreshInterval, (_) => emit());
-        } catch (error, stackTrace) {
-          if (!isCancelled && !controller.isClosed) {
-            controller.addError(error, stackTrace);
-          }
-        }
+          emit();
+        });
+        handleAuthChange();
       },
       onCancel: () async {
-        isCancelled = true;
+        isActive = false;
+        bindingGeneration++;
+        authSessionProvider.removeListener(handleAuthChange);
         refreshTimer?.cancel();
         await currentSubscription?.cancel();
         await pumpSubscription?.cancel();
@@ -94,27 +274,38 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
 
   @override
   Future<void> setPumpStatus(bool isOn) {
-    return sensorDatabase.setPumpStatus(isOn);
+    final AppUser? user = authSessionProvider.user;
+    if (user == null) {
+      throw StateError(
+        'An authenticated user is required to control the pump.',
+      );
+    }
+    return sensorDatabase.setPumpStatus(userUid: user.uid, isOn: isOn);
   }
 
-  HomeDashboardModel _mapDashboard(FieldCurrentReading? reading, bool pumpOn) {
-    final DateTime? updatedAt = reading?.updatedAt;
-
-    // Compare the sensor timestamp directly with now. The periodic re-emit
-    // above keeps this status current even between Firebase events.
-    final bool isOnline =
-        updatedAt != null && SensorDbConstants.isReadingFresh(updatedAt);
+  HomeDashboardModel _mapDashboard(
+    FieldCurrentReading? reading,
+    bool pumpOn, {
+    required DeviceStatus deviceStatus,
+    DateTime? lastConfirmedUpdatedAt,
+  }) {
+    final DateTime? updatedAt = reading?.updatedAt ?? lastConfirmedUpdatedAt;
 
     return HomeDashboardModel(
       greeting: 'Welcome back',
       fieldName: _fieldDisplayName(SensorDbConstants.defaultFieldKey),
-      connectionStatus: isOnline ? 'Device Online' : 'Device Offline',
+      connectionStatus: switch (deviceStatus) {
+        DeviceStatus.online => 'Online',
+        DeviceStatus.offline => 'Offline',
+        DeviceStatus.error => 'Unable to check status',
+        DeviceStatus.unknown || DeviceStatus.loading => 'Checking status...',
+      },
       smartAction: _buildSmartAction(reading),
       updatedLabel: updatedAt == null
           ? 'No data yet'
           : 'Updated ${relativeTime(updatedAt)}',
       sensors: _buildSensors(reading),
-      deviceOnline: isOnline,
+      deviceStatus: deviceStatus,
       updatedAt: updatedAt,
       pumpOn: pumpOn,
     );
@@ -203,13 +394,12 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
       );
     }
 
-    if (moisture != null &&
-        moisture > ThresholdSettingsService.soilMoistureWarningHigh) {
+    if (moisture != null && moisture > thresholdSettings.maxMoisture) {
       return SmartActionModel(
         title: 'Smart Action',
         message:
             'Soil moisture is at ${_formatValue(moisture)}%, above the '
-            '${ThresholdSettingsService.soilMoistureWarningHigh.round()}% '
+            '${_formatValue(thresholdSettings.maxMoisture)}% '
             'optimal range. ',
         highlight: 'Pause irrigation and check drainage.',
       );
@@ -226,13 +416,12 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
       );
     }
 
-    if (temperature != null &&
-        temperature < ThresholdSettingsService.temperatureWarningLow) {
+    if (temperature != null && temperature < thresholdSettings.minTemperature) {
       return SmartActionModel(
         title: 'Smart Action',
         message:
             'Temperature is ${_formatValue(temperature)}°C, below the '
-            '${ThresholdSettingsService.temperatureWarningLow.round()}°C '
+            '${_formatValue(thresholdSettings.minTemperature)}°C '
             'optimal range. ',
         highlight: 'Protect crops from cold stress.',
       );
@@ -248,30 +437,33 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
       );
     }
 
-    if (humidity != null &&
-        humidity < ThresholdSettingsService.humidityWarningLow) {
+    if (humidity != null && humidity < thresholdSettings.minHumidity) {
       return SmartActionModel(
         title: 'Smart Action',
         message:
             'Humidity is ${_formatValue(humidity)}%, below the '
-            '${ThresholdSettingsService.humidityWarningLow.round()}% '
+            '${_formatValue(thresholdSettings.minHumidity)}% '
             'optimal range. ',
         highlight: 'Watch for crop water stress.',
       );
     }
 
-    if (light != null && light < ThresholdSettingsService.lightWarningLow) {
-      return const SmartActionModel(
+    if (light != null && light < thresholdSettings.minLight) {
+      return SmartActionModel(
         title: 'Smart Action',
-        message: 'Light intensity is below the optimal crop range. ',
+        message:
+            'Light intensity is ${_formatValue(light)} lx, below the '
+            '${_formatValue(thresholdSettings.minLight)} lx threshold. ',
         highlight: 'Check for excessive shading.',
       );
     }
 
-    if (light != null && light > ThresholdSettingsService.lightWarningHigh) {
-      return const SmartActionModel(
+    if (light != null && light > thresholdSettings.maxLight) {
+      return SmartActionModel(
         title: 'Smart Action',
-        message: 'Light intensity is above the optimal crop range. ',
+        message:
+            'Light intensity is ${_formatValue(light)} lx, above the '
+            '${_formatValue(thresholdSettings.maxLight)} lx threshold. ',
         highlight: 'Monitor heat and light stress.',
       );
     }
